@@ -1,0 +1,1454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tavern — UX Prototypes</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    color: #1d1d1f;
+    background: #f5f5f7;
+  }
+  input, textarea, select, button { font-family: inherit; }
+  textarea { resize: vertical; }
+  #loading { padding: 48px; text-align: center; color: #86868b; font-size: 14px; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d2d2d7; border-radius: 999px; border: 2px solid #f5f5f7; }
+</style>
+</head>
+<body>
+<div id="root"><div id="loading">Loading prototype…</div></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+/* ================================================================
+   Tavern UX prototype — single-file, standalone.
+   Faithful plain-React port of two Cursor Canvas prototypes:
+     1) Winning Videos Library (template-library.canvas.tsx)
+     2) New Batch Flow (new-batch-flow.canvas.tsx)
+   No build step, no external CSS/JS beyond React + Babel CDN.
+   ================================================================ */
+const { useState } = React;
+
+/* ---------------- Theme (Apple-clean LIGHT) ---------------- */
+const THEME = {
+  bg: { editor: "#f5f5f7", elevated: "#ffffff", chrome: "#fbfbfd", base: "#ffffff" },
+  text: { primary: "#1d1d1f", secondary: "#48484a", tertiary: "#86868b", quaternary: "#b0b0b5", onAccent: "#ffffff" },
+  accent: { primary: "#0071e3" },
+  stroke: { primary: "#c7c7cc", secondary: "#dcdce0", tertiary: "#ebebed" },
+  fill: { secondary: "#e8e8ec", tertiary: "#f2f2f5", quaternary: "#f7f7f9" },
+};
+const TONE = { success: "#2e7d4f", info: "#0071e3", warning: "#b5683a", neutral: "#6e6e73" };
+const useHostTheme = () => THEME;
+// Plain useState stand-in for the canvas host store (key is ignored).
+const useCanvasState = (_key, initial) => useState(initial);
+
+// Muted, distinct (non-rainbow) palette for placeholder posters.
+const colorPalette = {
+  green: "#4f8a5b",
+  yellow: "#c2a23a",
+  gray: "#7c7c84",
+  blue: "#3b6fb0",
+  pink: "#b0668f",
+  purple: "#6f63b5",
+  orange: "#bf7340",
+};
+
+const mapAlign = (a) => (a === "start" ? "flex-start" : a === "end" ? "flex-end" : a || "center");
+
+/* ---------------- Layout primitives ---------------- */
+function Stack({ children, gap = 0, style }) {
+  return <div style={{ display: "flex", flexDirection: "column", gap, ...style }}>{children}</div>;
+}
+function Row({ children, gap = 0, align = "center", justify, wrap, style }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "row", gap, alignItems: mapAlign(align), justifyContent: justify || undefined, flexWrap: wrap ? "wrap" : "nowrap", ...style }}>
+      {children}
+    </div>
+  );
+}
+function Spacer() { return <div style={{ flex: 1 }} />; }
+function Divider() { return <div style={{ height: 1, width: "100%", background: THEME.stroke.tertiary }} />; }
+function Grid({ children, columns, gap = 0, align, style }) {
+  const gtc = typeof columns === "number" ? "repeat(" + columns + ", 1fr)" : columns;
+  return <div style={{ display: "grid", gridTemplateColumns: gtc, gap, alignItems: align ? mapAlign(align) : undefined, ...style }}>{children}</div>;
+}
+
+/* ---------------- Typography ---------------- */
+function H1({ children }) {
+  return <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: -0.4, color: THEME.text.primary, lineHeight: 1.15 }}>{children}</div>;
+}
+function Text({ children, size, tone, weight, truncate, style }) {
+  const fs = size === "small" ? 12.5 : 14;
+  const colorMap = { primary: THEME.text.primary, secondary: THEME.text.secondary, tertiary: THEME.text.tertiary, quaternary: THEME.text.quaternary };
+  const color = tone ? colorMap[tone] : THEME.text.primary;
+  const fw = weight === "semibold" ? 600 : weight === "medium" ? 500 : 400;
+  const trunc = truncate ? { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } : {};
+  return <div style={{ fontSize: fs, color, fontWeight: fw, lineHeight: 1.42, ...trunc, ...style }}>{children}</div>;
+}
+
+/* ---------------- Pill ---------------- */
+function Pill({ children, tone, active, size, onClick, leadingContent, style }) {
+  const sm = size === "sm";
+  const toneColor = tone ? TONE[tone] : THEME.accent.primary;
+  let bg, color, border;
+  if (active) {
+    if (tone) { bg = "#ffffff"; color = toneColor; border = "1px solid " + toneColor; }
+    else { bg = THEME.accent.primary; color = "#ffffff"; border = "1px solid " + THEME.accent.primary; }
+  } else {
+    bg = "transparent";
+    color = tone ? toneColor : THEME.text.secondary;
+    border = "1px solid " + (tone ? toneColor + "66" : THEME.stroke.primary);
+  }
+  return (
+    <span onClick={onClick} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: sm ? "2px 9px" : "5px 11px", borderRadius: 999, fontSize: sm ? 11 : 12.5, fontWeight: 500, background: bg, color, border, cursor: onClick ? "pointer" : "default", whiteSpace: "nowrap", lineHeight: 1.5, ...style }}>
+      {leadingContent ? <span style={{ display: "flex" }}>{leadingContent}</span> : null}
+      {children}
+    </span>
+  );
+}
+
+/* ---------------- Buttons ---------------- */
+function Button({ children, variant = "primary", disabled, onClick, style }) {
+  let v;
+  if (variant === "primary") v = { background: THEME.accent.primary, color: "#fff", border: "1px solid " + THEME.accent.primary };
+  else if (variant === "secondary") v = { background: "#fff", color: THEME.text.primary, border: "1px solid " + THEME.stroke.primary };
+  else v = { background: "transparent", color: THEME.accent.primary, border: "1px solid transparent" };
+  return (
+    <button disabled={disabled} onClick={onClick} style={{ padding: "9px 15px", borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.42 : 1, transition: "opacity 120ms ease", ...v, ...style }}>
+      {children}
+    </button>
+  );
+}
+function IconButton({ children, onClick, title, size }) {
+  const s = size === "sm" ? 22 : 26;
+  return (
+    <button title={title} onClick={onClick} style={{ width: s, height: s, borderRadius: 7, border: "none", background: THEME.fill.tertiary, color: THEME.text.secondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, lineHeight: 1, padding: 0, flexShrink: 0 }}>
+      {children}
+    </button>
+  );
+}
+
+/* ---------------- Callout / Card / Stat ---------------- */
+function Callout({ tone = "neutral", title, children }) {
+  const c = TONE[tone] || TONE.neutral;
+  return (
+    <div style={{ background: c + "12", border: "1px solid " + c + "33", borderRadius: 11, padding: "11px 13px" }}>
+      <Stack gap={title ? 6 : 0}>
+        {title ? <Text size="small" weight="semibold" style={{ color: c }}>{title}</Text> : null}
+        <div style={{ fontSize: 12.5, color: THEME.text.secondary, lineHeight: 1.45 }}>{children}</div>
+      </Stack>
+    </div>
+  );
+}
+function Card({ children, style }) {
+  return <div style={{ background: THEME.bg.elevated, border: "1px solid " + THEME.stroke.secondary, borderRadius: 14, overflow: "hidden", ...style }}>{children}</div>;
+}
+function CardBody({ children, style }) { return <div style={{ padding: 16, ...style }}>{children}</div>; }
+function CardHeader({ children, trailing }) {
+  return (
+    <div style={{ padding: "11px 16px", borderBottom: "1px solid " + THEME.stroke.tertiary, display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 13.5, fontWeight: 600, color: THEME.text.primary }}>
+      <div>{children}</div>
+      {trailing ? <div>{trailing}</div> : null}
+    </div>
+  );
+}
+function Stat({ value, label, tone }) {
+  const c = tone === "success" ? TONE.success : tone === "info" ? TONE.info : THEME.text.primary;
+  return (
+    <div style={{ padding: "14px 16px", border: "1px solid " + THEME.stroke.secondary, borderRadius: 12, background: "#fff" }}>
+      <div style={{ fontSize: 26, fontWeight: 600, color: c, letterSpacing: -0.3 }}>{value}</div>
+      <Text size="small" tone="tertiary">{label}</Text>
+    </div>
+  );
+}
+
+/* ---------------- Form controls ---------------- */
+const inputStyle = { width: "100%", padding: "9px 11px", borderRadius: 9, border: "1px solid " + THEME.stroke.primary, fontSize: 14, color: THEME.text.primary, background: "#fff", outline: "none", boxSizing: "border-box" };
+function TextInput({ value, onChange, placeholder }) {
+  return <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={inputStyle} />;
+}
+function TextArea({ value, onChange, rows, placeholder }) {
+  return <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows || 3} placeholder={placeholder} style={{ ...inputStyle, lineHeight: 1.45 }} />;
+}
+function Select({ value, onChange, options }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} style={{ ...inputStyle, cursor: "pointer", appearance: "auto" }}>
+      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+function Toggle({ checked, onChange }) {
+  return (
+    <div onClick={() => onChange(!checked)} style={{ width: 42, height: 25, borderRadius: 999, background: checked ? THEME.accent.primary : THEME.stroke.primary, position: "relative", cursor: "pointer", transition: "background 150ms ease", flexShrink: 0 }}>
+      <div style={{ position: "absolute", top: 2, left: checked ? 19 : 2, width: 21, height: 21, borderRadius: 999, background: "#fff", transition: "left 150ms ease", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+    </div>
+  );
+}
+
+/* ---------------- Deterministic flat poster (offline-safe) ---------------- */
+function hashSeed(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+function FlatPoster({ seed, play }) {
+  const keys = Object.keys(colorPalette);
+  const h = hashSeed(String(seed));
+  const base = colorPalette[keys[h % keys.length]];
+  const accent = colorPalette[keys[(((h >> 3) % keys.length) + 2) % keys.length]];
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", background: base }}>
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: "absolute", inset: 0 }}>
+        <polygon points="0,100 100,38 100,100" fill={accent} opacity="0.5" />
+        <polygon points="0,100 62,100 0,64" fill="#ffffff" opacity="0.08" />
+      </svg>
+      {play ? (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 34, height: 34, borderRadius: 999, background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="12" height="12" viewBox="0 0 16 16"><polygon points="5,3.5 12.5,8 5,12.5" fill="#1a1a1a" /></svg>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ================================================================
+   PROTOTYPE 1 — Winning Videos Library
+   ================================================================ */
+
+const TYPE_LABEL = {
+  script: "Script",
+  voiceover: "Voiceover",
+  soundtrack: "Soundtrack",
+  creative: "Creative Direction",
+  skill: "Skill / Template",
+  visual: "Visual Style",
+};
+const ORIGIN_LABEL = { video: "", custom: "Custom", uploaded: "Uploaded", roster: "Roster", library: "Library" };
+const ALL_TYPES = ["script", "voiceover", "soundtrack", "creative", "skill", "visual"];
+const isMulti = (t) => t === "script" || t === "skill";
+const selKey = (t) => (t === "script" ? "scripts" : t === "skill" ? "skills" : t);
+
+const EMPTY_SELECTION = { scripts: [], skills: [], voiceover: null, soundtrack: null, creative: null, visual: null };
+
+const VIDEOS = [
+  { id: "maria-bio", title: "Maria Torres — Front Porch Intro", category: "Bio / Intro", color: colorPalette.green, accent: colorPalette.yellow, duration: "0:30", format: "Both", badge: "Top performer", badgeTone: "success", ctr: "4.8%", views: "612k", vtr: "71%",
+    script: { id: "msg_abc123", text: "Maria Torres will fight for our community — for working families, not the special interests." },
+    voiceover: { artist: "Rachel", provider: "ElevenLabs" }, soundtrack: { name: "Hometown Sunrise", mood: "Warm, hopeful acoustic" },
+    creative: "Warm golden-hour tone. Slow push-ins on neighborhood b-roll, families on porches. Optimistic, grounded, never slick.",
+    skill: { name: "front-porch-positive", desc: "Warm lower-third name bar, soft civic captions, hopeful pacing." },
+    visual: { format: "Both", duration: "30s", grade: "Natural", captions: "Standard", res: "1080p", fps: "30 fps" } },
+  { id: "record-contrast", title: "The Record — Negative Contrast", category: "Negative / Contrast", color: colorPalette.gray, accent: colorPalette.pink, duration: "0:30", format: "Horizontal", badge: "High CTR", badgeTone: "info", ctr: "6.1%", views: "428k", vtr: "63%",
+    script: { id: "msg_def456", text: "After 20 years in office, what did he deliver? Higher costs, broken promises, and votes against us." },
+    voiceover: { artist: "Adam", provider: "ElevenLabs" }, soundtrack: { name: "Pressure Drop", mood: "Tense, driving percussion" },
+    creative: "High-contrast documentary look, desaturated grade, hard cuts on newspaper headlines and dates. Skeptical, urgent.",
+    skill: { name: "documentary-negative", desc: "Desaturated grade, knockout headline slams, ticking-clock rhythm." },
+    visual: { format: "Horizontal", duration: "30s", grade: "Documentary", captions: "Highlight", res: "1080p", fps: "30 fps" } },
+  { id: "gotv-final", title: "Final 48 Hours — GOTV Push", category: "GOTV", color: colorPalette.blue, accent: colorPalette.green, duration: "0:15", format: "Vertical", badge: "Best watch-through", badgeTone: "success", ctr: "5.3%", views: "1.2M", vtr: "82%",
+    script: { id: "msg_gotv01", text: "Polls close Tuesday at 8 PM. Make your plan to vote — bring a friend, bring your voice." },
+    voiceover: { artist: "Bella", provider: "ElevenLabs" }, soundtrack: { name: "Countdown Anthem", mood: "Upbeat, motivating" },
+    creative: "Fast-paced vertical cut for social. Big bold ward-by-ward captions, energetic, snappy transitions. Mobile-first.",
+    skill: { name: "condensed-red-banner", desc: "Condensed banner captions, punchy timing, deadline emphasis." },
+    visual: { format: "Vertical", duration: "15s", grade: "Vivid", captions: "Karaoke", res: "1080p", fps: "30 fps" } },
+  { id: "healthcare-issue", title: "Lower Costs — Healthcare Issue Spot", category: "Issue", color: colorPalette.purple, accent: colorPalette.blue, duration: "0:30", format: "Both", badge: "Top performer", badgeTone: "success", ctr: "4.4%", views: "537k", vtr: "68%",
+    script: { id: "msg_hc789", text: "Nobody should choose between groceries and their prescriptions. Dr. Lin has a plan to cap costs." },
+    voiceover: { artist: "Charlotte", provider: "ElevenLabs" }, soundtrack: { name: "Steady Hands", mood: "Calm, reassuring piano" },
+    creative: "Clean clinical-but-human look, soft natural light in homes and pharmacies. Captions on every line for sound-off viewing.",
+    skill: { name: "lower-third-positive", desc: "Clean lower-third name bar with full-line captions, calm pacing." },
+    visual: { format: "Both", duration: "30s", grade: "Natural", captions: "Subtitle", res: "1080p", fps: "30 fps" } },
+  { id: "endorsement", title: "Sheriffs Endorse — Trust Builder", category: "Persuasion", color: colorPalette.orange, accent: colorPalette.gray, duration: "0:30", format: "Horizontal", badge: "High CTR", badgeTone: "info", ctr: "5.0%", views: "389k", vtr: "66%",
+    script: { id: "msg_end222", text: "When 14 county sheriffs back the same candidate, you listen. They trust Jordan Vance to keep us safe." },
+    voiceover: { artist: "Josh", provider: "ElevenLabs" }, soundtrack: { name: "Granite Resolve", mood: "Sturdy, credible strings" },
+    creative: "Authoritative two-panel layout pairing the candidate with endorsers. Credible, steady, badge-forward.",
+    skill: { name: "two-panel-skewed-bar", desc: "Two-panel skewed bar layout, endorsement badges, steady cuts." },
+    visual: { format: "Horizontal", duration: "30s", grade: "Natural", captions: "Standard", res: "4K", fps: "30 fps" } },
+  { id: "dossier-attack", title: "Paper Trail — Dossier Attack", category: "Negative / Contrast", color: colorPalette.gray, accent: colorPalette.orange, duration: "0:30", format: "Horizontal", badge: "High CTR", badgeTone: "info", ctr: "6.7%", views: "503k", vtr: "59%",
+    script: { id: "msg_dos333", text: "It's all on the record. The votes, the donors, the conflicts. Senator Boyd works for them — not you." },
+    voiceover: { artist: "Sam", provider: "ElevenLabs" }, soundtrack: { name: "Redacted", mood: "Ominous, investigative" },
+    creative: "Investigative dossier aesthetic — stamped documents, highlighter reveals, redaction bars. Cold, factual, damning.",
+    skill: { name: "dossier", desc: "Stamped document reveals, redaction motifs, citation footnotes." },
+    visual: { format: "Horizontal", duration: "30s", grade: "Documentary", captions: "Highlight", res: "1080p", fps: "24 fps" } },
+  { id: "veteran-bio", title: "Served With Honor — Veteran Bio", category: "Bio / Intro", color: colorPalette.blue, accent: colorPalette.yellow, duration: "0:30", format: "Both", badge: "Top performer", badgeTone: "success", ctr: "4.6%", views: "744k", vtr: "74%",
+    script: { id: "msg_vet444", text: "He served two tours overseas. Now Captain Ellis is ready to serve again — this time, for you." },
+    voiceover: { artist: "Antoni", provider: "ElevenLabs" }, soundtrack: { name: "Colors Raised", mood: "Cinematic, proud" },
+    creative: "Cinematic clean letterbox, archival service photos dissolving to present day. Dignified, emotional, restrained.",
+    skill: { name: "clean-letterbox", desc: "Cinematic letterbox, archival dissolves, restrained name slate." },
+    visual: { format: "Both", duration: "30s", grade: "Cinematic", captions: "Standard", res: "4K", fps: "24 fps" } },
+  { id: "youth-social", title: "Your Vote, Your Future — Youth Social", category: "GOTV", color: colorPalette.pink, accent: colorPalette.purple, duration: "0:15", format: "Vertical", badge: "Best watch-through", badgeTone: "success", ctr: "5.9%", views: "2.1M", vtr: "79%",
+    script: { id: "msg_yth555", text: "This one's on us. Climate, costs, our future — register today and let's actually decide it." },
+    voiceover: { artist: "Domi", provider: "ElevenLabs" }, soundtrack: { name: "First Time Voter", mood: "Bright, modern pop" },
+    creative: "Bold riso-poster look, oversized animated word-by-word captions, vibrant duotone stamps. Gen-Z, scroll-stopping.",
+    skill: { name: "riso-poster-stamp", desc: "Riso poster stamps, oversized word-by-word captions, bold duotone." },
+    visual: { format: "Vertical", duration: "15s", grade: "Vivid", captions: "Word by Word", res: "1080p", fps: "30 fps" } },
+  { id: "education-persuasion", title: "Every Classroom — Education Persuasion", category: "Persuasion", color: colorPalette.green, accent: colorPalette.blue, duration: "0:30", format: "Both", badge: "Steady performer", badgeTone: "neutral", ctr: "3.9%", views: "298k", vtr: "70%",
+    script: { id: "msg_edu666", text: "Smaller class sizes. Real teacher pay. Books in every backpack. Patel is fighting for our schools." },
+    voiceover: { artist: "Elli", provider: "ElevenLabs" }, soundtrack: { name: "Morning Bell", mood: "Gentle, optimistic" },
+    creative: "Soft rounded civic look, friendly pill captions, classrooms and playgrounds in natural light. Approachable and warm.",
+    skill: { name: "soft-rounded-civic-pill", desc: "Soft rounded civic pill captions, friendly name bar, gentle pacing." },
+    visual: { format: "Both", duration: "30s", grade: "Natural", captions: "Standard", res: "1080p", fps: "30 fps" } },
+];
+
+const CATEGORIES = ["All", "Bio / Intro", "Persuasion", "GOTV", "Issue", "Negative / Contrast"];
+
+/* Bring-your-own rosters / libraries (not tied to any video) */
+const VO_ROSTER = [
+  { id: "vo-rachel", name: "Rachel", provider: "ElevenLabs", tone: "Warm, trustworthy" },
+  { id: "vo-marcus", name: "Marcus", provider: "ElevenLabs", tone: "Deep, authoritative" },
+  { id: "vo-sofia", name: "Sofía", provider: "Play.ht", tone: "Bright, energetic" },
+  { id: "vo-darnell", name: "Darnell", provider: "WellSaid", tone: "Smooth narrator" },
+  { id: "vo-keiko", name: "Keiko", provider: "Azure Neural", tone: "Calm, precise" },
+  { id: "vo-grace", name: "Grace", provider: "ElevenLabs", tone: "Empathetic, soft" },
+];
+const TRACK_LIBRARY = [
+  { id: "tr-openroad", name: "Open Road", mood: "Uplifting indie folk" },
+  { id: "tr-citylights", name: "City Lights", mood: "Modern synth pop" },
+  { id: "tr-quiet", name: "Quiet Resolve", mood: "Reflective piano" },
+  { id: "tr-momentum", name: "Momentum", mood: "Driving cinematic" },
+  { id: "tr-frontporch", name: "Front Porch", mood: "Warm acoustic" },
+  { id: "tr-lastpush", name: "Last Push", mood: "Anthemic build" },
+];
+const TEMPLATES = [
+  { name: "front-porch-positive", desc: "Warm lower-third name bar, soft civic captions, hopeful pacing." },
+  { name: "documentary-negative", desc: "Desaturated grade, knockout headline slams, ticking-clock rhythm." },
+  { name: "condensed-red-banner", desc: "Condensed banner captions, punchy timing, deadline emphasis." },
+  { name: "lower-third-positive", desc: "Clean lower-third name bar with full-line captions, calm pacing." },
+  { name: "two-panel-skewed-bar", desc: "Two-panel skewed bar layout, endorsement badges, steady cuts." },
+  { name: "dossier", desc: "Stamped document reveals, redaction motifs, citation footnotes." },
+  { name: "clean-letterbox", desc: "Cinematic letterbox, archival dissolves, restrained name slate." },
+  { name: "riso-poster-stamp", desc: "Riso poster stamps, oversized word-by-word captions, bold duotone." },
+  { name: "soft-rounded-civic-pill", desc: "Soft rounded civic pill captions, friendly name bar, gentle pacing." },
+  { name: "split-screen-debate", desc: "Side-by-side contrast layout for head-to-head comparisons." },
+  { name: "kinetic-typography", desc: "Full-screen animated text — no footage required." },
+];
+const MOCK_VO_FILES = ["my-vo-take3.mp3", "studio-read-final.wav"];
+const MOCK_AUDIO_FILES = ["campaign-bed-loop.mp3", "rally-ambience.wav"];
+const VISUAL_FORMATS = ["Horizontal", "Vertical", "Both"];
+const VISUAL_DURATIONS = ["15s", "30s", "45s", "60s"];
+const VISUAL_GRADES = ["Natural", "Documentary", "Cinematic", "Vivid"];
+const VISUAL_CAPTIONS = ["Standard", "Highlight", "Karaoke", "Subtitle", "Word by Word", "None"];
+const DEFAULT_VISUAL_DRAFT = { format: "Both", duration: "30s", grade: "Natural", captions: "Standard" };
+
+/* Helpers */
+function videoById(id) { return VIDEOS.find((v) => v.id === id); }
+function elementValue(v, type) {
+  switch (type) {
+    case "script": return v.script.text;
+    case "voiceover": return v.voiceover.artist + " — " + v.voiceover.provider;
+    case "soundtrack": return v.soundtrack.name + " · " + v.soundtrack.mood;
+    case "creative": return v.creative;
+    case "skill": return v.skill.name;
+    case "visual": return v.visual.format + " · " + v.visual.duration + " · " + v.visual.grade + " · " + v.visual.captions;
+    default: return "";
+  }
+}
+let uidCounter = 0;
+function makeUid() { uidCounter += 1; return "p" + Date.now().toString(36) + "_" + uidCounter; }
+function videoPick(v, type) { return { uid: makeUid(), origin: "video", value: elementValue(v, type), source: v.title, videoId: v.id }; }
+function isSelected(sel, videoId, type) {
+  if (isMulti(type)) return sel[selKey(type)].some((p) => p.videoId === videoId);
+  const p = sel[selKey(type)];
+  return !!p && p.videoId === videoId;
+}
+function selectedCount(sel) {
+  return sel.scripts.length + sel.skills.length + (sel.voiceover ? 1 : 0) + (sel.soundtrack ? 1 : 0) + (sel.creative ? 1 : 0) + (sel.visual ? 1 : 0);
+}
+
+/* Element icons */
+function ElIcon({ type, size = 14 }) {
+  const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.4, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (type) {
+    case "script": return (<svg {...common}><path d="M4 2h5l3 3v9H4z" /><path d="M6 6.5h3M6 9h4M6 11.5h2.5" /></svg>);
+    case "voiceover": return (<svg {...common}><rect x="6" y="2" width="4" height="7" rx="2" /><path d="M4 8a4 4 0 0 0 8 0" /><path d="M8 12v2M6 14h4" /></svg>);
+    case "soundtrack": return (<svg {...common}><path d="M6 12V4l6-1.6V10" /><circle cx="4.8" cy="12" r="1.6" /><circle cx="10.8" cy="10.4" r="1.6" /></svg>);
+    case "creative": return (<svg {...common}><path d="M8 2.2l1.3 3.4 3.4 1.3-3.4 1.3L8 11.6 6.7 8.2 3.3 6.9l3.4-1.3z" /><path d="M12.5 11.5l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" /></svg>);
+    case "skill": return (<svg {...common}><path d="M8 2.2l5.2 2.8L8 7.8 2.8 5z" /><path d="M2.8 8L8 10.8 13.2 8" /><path d="M2.8 11L8 13.8 13.2 11" /></svg>);
+    case "visual": return (<svg {...common}><rect x="2.3" y="3.6" width="11.4" height="8.8" rx="1.4" /><path d="M2.3 8h11.4M8 3.6v8.8" /></svg>);
+    default: return null;
+  }
+}
+
+function pillChip() {
+  return { fontSize: 11, fontWeight: 600, color: "#ffffff", background: "rgba(0,0,0,0.45)", padding: "2px 7px", borderRadius: 999, letterSpacing: 0.2 };
+}
+function Poster({ v }) {
+  return (
+    <div style={{ position: "relative", height: 150, borderRadius: 12, overflow: "hidden", background: v.color }}>
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: "absolute", inset: 0 }}>
+        <polygon points="0,100 100,38 100,100" fill={v.accent} opacity={0.5} />
+        <polygon points="0,100 62,100 0,64" fill="#ffffff" opacity={0.08} />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 46, height: 46, borderRadius: 999, background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width={16} height={16} viewBox="0 0 16 16"><polygon points="5,3.5 12.5,8 5,12.5" fill="#1a1a1a" /></svg>
+        </div>
+      </div>
+      <div style={{ position: "absolute", top: 10, right: 10 }}>
+        <Pill tone={v.badgeTone} active size="sm">{v.badge}</Pill>
+      </div>
+      <div style={{ position: "absolute", left: 10, bottom: 10, display: "flex", gap: 6 }}>
+        <span style={pillChip()}>{v.duration}</span>
+        <span style={pillChip()}>{v.format === "Both" ? "H + V" : v.format === "Vertical" ? "V" : "H"}</span>
+      </div>
+    </div>
+  );
+}
+
+function IngredientRow({ v, type, selected, onToggle }) {
+  const theme = useHostTheme();
+  const value = elementValue(v, type);
+  return (
+    <div onClick={onToggle} title={selected ? "Remove from batch" : "Add to batch"}
+      style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 9, cursor: "pointer",
+        border: "1px solid " + (selected ? theme.accent.primary : theme.stroke.tertiary),
+        background: selected ? theme.accent.primary + "1F" : "transparent" }}>
+      <span style={{ color: selected ? theme.accent.primary : theme.text.tertiary, display: "flex", flexShrink: 0 }}>
+        <ElIcon type={type} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Text size="small" tone="tertiary" weight="medium">{TYPE_LABEL[type]}</Text>
+        <Text size="small" truncate>{value}</Text>
+      </div>
+      <div style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center",
+        background: selected ? theme.accent.primary : theme.fill.tertiary, color: selected ? theme.text.onAccent : theme.text.secondary, fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
+        {selected ? "✓" : "＋"}
+      </div>
+    </div>
+  );
+}
+
+function PerfStat({ label, value, accent }) {
+  const theme = useHostTheme();
+  return (
+    <div style={{ flex: 1, minWidth: 72, padding: "6px 10px", borderRadius: 8, background: theme.fill.tertiary }}>
+      <Text size="small" weight="semibold" style={accent ? { color: theme.accent.primary } : undefined}>{value}</Text>
+      <Text size="small" tone="tertiary">{label}</Text>
+    </div>
+  );
+}
+
+function VideoCard({ v, sel, onToggle, onUseAll }) {
+  const count = ALL_TYPES.filter((t) => isSelected(sel, v.id, t)).length;
+  return (
+    <Card>
+      <CardBody style={{ padding: 14 }}>
+        <Stack gap={12}>
+          <Poster v={v} />
+          <Stack gap={4}>
+            <Text weight="semibold">{v.title}</Text>
+            <Text size="small" tone="tertiary">{v.category}</Text>
+          </Stack>
+          <Row gap={8} wrap>
+            <PerfStat label="CTR" value={v.ctr} accent />
+            <PerfStat label="Views" value={v.views} />
+            <PerfStat label="Watch-through" value={v.vtr} />
+          </Row>
+          <Divider />
+          <Row align="center">
+            <Text size="small" tone="secondary" weight="medium">Ingredients</Text>
+            <Spacer />
+            <Text size="small" tone="tertiary">{count}/6 added</Text>
+          </Row>
+          <Stack gap={6}>
+            {ALL_TYPES.map((t) => (
+              <IngredientRow key={t} v={v} type={t} selected={isSelected(sel, v.id, t)} onToggle={() => onToggle(t, v.id)} />
+            ))}
+          </Stack>
+          <Button variant={count === 6 ? "secondary" : "primary"} style={{ width: "100%" }} onClick={() => onUseAll(v)}>
+            {count === 6 ? "Whole recipe added" : "Use entire recipe"}
+          </Button>
+        </Stack>
+      </CardBody>
+    </Card>
+  );
+}
+
+function GroupLabel({ type }) {
+  const theme = useHostTheme();
+  return (
+    <Row gap={6} align="center">
+      <span style={{ color: theme.text.tertiary, display: "flex" }}><ElIcon type={type} size={13} /></span>
+      <Text size="small" tone="tertiary" weight="semibold" style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>{TYPE_LABEL[type]}</Text>
+    </Row>
+  );
+}
+
+function PickedChip({ pick, onRemove }) {
+  const theme = useHostTheme();
+  const tag = ORIGIN_LABEL[pick.origin];
+  const isOwn = pick.origin !== "video";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 9,
+      border: "1px solid " + (isOwn ? theme.accent.primary + "66" : theme.stroke.tertiary), background: theme.fill.quaternary }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Text size="small" truncate>{pick.value}</Text>
+        <Row gap={6} align="center" style={{ marginTop: 2 }}>
+          {tag ? (
+            <Pill size="sm" active tone={pick.origin === "uploaded" ? "info" : "neutral"}>{tag}</Pill>
+          ) : (
+            <Text size="small" tone="tertiary" truncate>from {pick.source}</Text>
+          )}
+        </Row>
+      </div>
+      <IconButton title="Remove" size="sm" onClick={onRemove}>✕</IconButton>
+    </div>
+  );
+}
+
+function ComposerGroup({ type, picks, onRemove }) {
+  if (picks.length === 0) return null;
+  return (
+    <Stack gap={6}>
+      <GroupLabel type={type} />
+      <Stack gap={6}>{picks.map((p) => <PickedChip key={p.uid} pick={p} onRemove={() => onRemove(p.uid)} />)}</Stack>
+    </Stack>
+  );
+}
+function ComposerSingle({ type, pick, onRemove }) {
+  if (!pick) return null;
+  return (
+    <Stack gap={6}>
+      <GroupLabel type={type} />
+      <PickedChip pick={pick} onRemove={onRemove} />
+    </Stack>
+  );
+}
+
+function OptionRow({ title, subtitle, actionLabel = "Use", disabled, onClick }) {
+  const theme = useHostTheme();
+  return (
+    <div onClick={disabled ? undefined : onClick}
+      style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 9, cursor: disabled ? "default" : "pointer",
+        border: "1px solid " + theme.stroke.tertiary, background: "transparent", opacity: disabled ? 0.6 : 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <Text size="small" weight="medium" truncate>{title}</Text>
+        <Text size="small" tone="tertiary" truncate>{subtitle}</Text>
+      </div>
+      <Text size="small" weight="semibold" style={{ color: disabled ? theme.text.tertiary : theme.accent.primary, flexShrink: 0 }}>{actionLabel}</Text>
+    </div>
+  );
+}
+
+function UploadField({ value, onChange, placeholder, suggestions, onUpload }) {
+  return (
+    <Stack gap={8}>
+      <Row gap={8} align="center">
+        <div style={{ flex: 1 }}><TextInput value={value} onChange={onChange} placeholder={placeholder} /></div>
+        <Button variant="secondary" disabled={!value.trim()} onClick={() => onUpload(value)}>Upload</Button>
+      </Row>
+      <Row gap={6} wrap style={{ rowGap: 6 }}>
+        {suggestions.map((f) => <Pill key={f} size="sm" onClick={() => onUpload(f)}>{f}</Pill>)}
+      </Row>
+    </Stack>
+  );
+}
+
+function Composer({ sel, setSel, batchName, setBatchName, note, setNote, created, setCreated }) {
+  const theme = useHostTheme();
+  const count = selectedCount(sel);
+
+  const [openType, setOpenType] = useCanvasState("tavern.customOpen", "");
+  const [dScript, setDScript] = useCanvasState("tavern.dScript", "");
+  const [dCreative, setDCreative] = useCanvasState("tavern.dCreative", "");
+  const [dSkill, setDSkill] = useCanvasState("tavern.dSkill", "");
+  const [dVoFile, setDVoFile] = useCanvasState("tavern.dVoFile", "");
+  const [dTrackFile, setDTrackFile] = useCanvasState("tavern.dTrackFile", "");
+  const [dVis, setDVis] = useCanvasState("tavern.dVis", DEFAULT_VISUAL_DRAFT);
+
+  const closeEditor = () => setOpenType("");
+  const removeMulti = (key, uid) => setSel((p) => ({ ...p, [key]: p[key].filter((x) => x.uid !== uid) }));
+  const removeSingle = (key) => setSel((p) => ({ ...p, [key]: null }));
+
+  const setSinglePick = (key, pick) => {
+    const prev = sel[key];
+    if (prev) setNote("Replaced " + TYPE_LABEL[key] + " (only one allowed per batch) — dropped “" + (prev.origin === "video" ? prev.source : prev.value) + ".”");
+    else setNote("");
+    setSel((p) => ({ ...p, [key]: pick }));
+    closeEditor();
+  };
+
+  const addCustomScript = () => {
+    const t = dScript.trim();
+    if (!t) return;
+    setSel((p) => ({ ...p, scripts: [...p.scripts, { uid: makeUid(), origin: "custom", value: t, source: "Custom" }] }));
+    setDScript(""); setNote(""); closeEditor();
+  };
+  const pickVoiceover = (o) => setSinglePick("voiceover", { uid: makeUid(), origin: "roster", value: o.name + " — " + o.provider + " · " + o.tone, source: "Voice roster" });
+  const uploadVoiceover = (file) => { const f = file.trim(); if (!f) return; setSinglePick("voiceover", { uid: makeUid(), origin: "uploaded", value: f, source: "Uploaded file" }); setDVoFile(""); };
+  const pickTrack = (t) => setSinglePick("soundtrack", { uid: makeUid(), origin: "library", value: t.name + " · " + t.mood, source: "Track library" });
+  const uploadTrack = (file) => { const f = file.trim(); if (!f) return; setSinglePick("soundtrack", { uid: makeUid(), origin: "uploaded", value: f, source: "Uploaded file" }); setDTrackFile(""); };
+  const setCustomCreative = () => { const t = dCreative.trim(); if (!t) return; setSinglePick("creative", { uid: makeUid(), origin: "custom", value: t, source: "Custom" }); setDCreative(""); };
+  const addTemplate = (tpl) => setSel((p) => p.skills.some((s) => s.value === tpl.name) ? p : ({ ...p, skills: [...p.skills, { uid: makeUid(), origin: "library", value: tpl.name, source: "Template library" }] }));
+  const addSkillNote = () => { const t = dSkill.trim(); if (!t) return; setSel((p) => ({ ...p, skills: [...p.skills, { uid: makeUid(), origin: "custom", value: t, source: "Custom" }] })); setDSkill(""); setNote(""); };
+  const setCustomVisual = () => { const value = dVis.format + " · " + dVis.duration + " · " + dVis.grade + " · " + dVis.captions; setSinglePick("visual", { uid: makeUid(), origin: "custom", value, source: "Custom" }); };
+
+  const handleCreate = () => {
+    const lines = [];
+    sel.scripts.forEach((p) => lines.push({ type: "script", value: p.value, source: p.source, origin: p.origin }));
+    ["voiceover", "soundtrack", "creative"].forEach((t) => { const p = sel[t]; if (p) lines.push({ type: t, value: p.value, source: p.source, origin: p.origin }); });
+    sel.skills.forEach((p) => lines.push({ type: "skill", value: p.value, source: p.source, origin: p.origin }));
+    if (sel.visual) lines.push({ type: "visual", value: sel.visual.value, source: sel.visual.source, origin: sel.visual.origin });
+    setCreated({ name: batchName.trim() || "Untitled batch", lines });
+  };
+  const resetAll = () => { setCreated(null); setSel(EMPTY_SELECTION); setBatchName(""); setNote(""); closeEditor(); };
+
+  const labelText = { marginBottom: 4 };
+  const renderEditor = () => {
+    if (openType === "") return null;
+    return (
+      <div style={{ border: "1px solid " + theme.stroke.secondary, borderRadius: 11, background: theme.bg.base, padding: 12 }}>
+        <Stack gap={10}>
+          <Row align="center" gap={8}>
+            <span style={{ color: theme.accent.primary, display: "flex" }}><ElIcon type={openType} size={13} /></span>
+            <Text size="small" weight="semibold">Add your own {TYPE_LABEL[openType]}</Text>
+            <Spacer />
+            <IconButton title="Close" size="sm" onClick={closeEditor}>✕</IconButton>
+          </Row>
+
+          {openType === "script" && (
+            <Stack gap={8}>
+              <TextArea value={dScript} onChange={setDScript} rows={3} placeholder="Write or paste a brand-new script…" />
+              <Row gap={8}>
+                <Button variant="primary" disabled={!dScript.trim()} onClick={addCustomScript}>Add script</Button>
+                <Button variant="ghost" onClick={closeEditor}>Cancel</Button>
+              </Row>
+            </Stack>
+          )}
+
+          {openType === "voiceover" && (
+            <Stack gap={10}>
+              <Text size="small" tone="tertiary" weight="medium">Pick from the roster</Text>
+              <Stack gap={6}>
+                {VO_ROSTER.map((o) => <OptionRow key={o.id} title={o.name + " — " + o.provider} subtitle={o.tone} onClick={() => pickVoiceover(o)} />)}
+              </Stack>
+              <Divider />
+              <Text size="small" tone="tertiary" weight="medium">Or upload your own</Text>
+              <UploadField value={dVoFile} onChange={setDVoFile} placeholder="my-vo-take3.mp3" suggestions={MOCK_VO_FILES} onUpload={uploadVoiceover} />
+            </Stack>
+          )}
+
+          {openType === "soundtrack" && (
+            <Stack gap={10}>
+              <Text size="small" tone="tertiary" weight="medium">Pick from the track library</Text>
+              <Stack gap={6}>
+                {TRACK_LIBRARY.map((t) => <OptionRow key={t.id} title={t.name} subtitle={t.mood} onClick={() => pickTrack(t)} />)}
+              </Stack>
+              <Divider />
+              <Text size="small" tone="tertiary" weight="medium">Or upload audio</Text>
+              <UploadField value={dTrackFile} onChange={setDTrackFile} placeholder="campaign-bed-loop.mp3" suggestions={MOCK_AUDIO_FILES} onUpload={uploadTrack} />
+            </Stack>
+          )}
+
+          {openType === "creative" && (
+            <Stack gap={8}>
+              <TextArea value={dCreative} onChange={setDCreative} rows={3} placeholder="Describe the look and tone in your own words…" />
+              <Row gap={8}>
+                <Button variant="primary" disabled={!dCreative.trim()} onClick={setCustomCreative}>Set direction</Button>
+                <Button variant="ghost" onClick={closeEditor}>Cancel</Button>
+              </Row>
+            </Stack>
+          )}
+
+          {openType === "skill" && (
+            <Stack gap={10}>
+              <Text size="small" tone="tertiary" weight="medium">Choose from the full template library</Text>
+              <Stack gap={6}>
+                {TEMPLATES.map((tpl) => {
+                  const added = sel.skills.some((s) => s.value === tpl.name);
+                  return <OptionRow key={tpl.name} title={tpl.name} subtitle={tpl.desc} actionLabel={added ? "Added" : "Add"} disabled={added} onClick={() => addTemplate(tpl)} />;
+                })}
+              </Stack>
+              <Divider />
+              <Text size="small" tone="tertiary" weight="medium">Or add a custom note</Text>
+              <Row gap={8} align="center">
+                <div style={{ flex: 1 }}><TextInput value={dSkill} onChange={setDSkill} placeholder="e.g. add a bold end-card with the donation URL" /></div>
+                <Button variant="secondary" disabled={!dSkill.trim()} onClick={addSkillNote}>Add</Button>
+              </Row>
+            </Stack>
+          )}
+
+          {openType === "visual" && (
+            <Stack gap={10}>
+              <Row gap={8} wrap style={{ rowGap: 8 }}>
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <Text size="small" tone="tertiary" weight="medium" style={labelText}>Format</Text>
+                  <Select value={dVis.format} onChange={(v) => setDVis((p) => ({ ...p, format: v }))} options={VISUAL_FORMATS.map((o) => ({ value: o, label: o }))} />
+                </div>
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <Text size="small" tone="tertiary" weight="medium" style={labelText}>Duration</Text>
+                  <Select value={dVis.duration} onChange={(v) => setDVis((p) => ({ ...p, duration: v }))} options={VISUAL_DURATIONS.map((o) => ({ value: o, label: o }))} />
+                </div>
+              </Row>
+              <Row gap={8} wrap style={{ rowGap: 8 }}>
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <Text size="small" tone="tertiary" weight="medium" style={labelText}>Color grade</Text>
+                  <Select value={dVis.grade} onChange={(v) => setDVis((p) => ({ ...p, grade: v }))} options={VISUAL_GRADES.map((o) => ({ value: o, label: o }))} />
+                </div>
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <Text size="small" tone="tertiary" weight="medium" style={labelText}>Captions</Text>
+                  <Select value={dVis.captions} onChange={(v) => setDVis((p) => ({ ...p, captions: v }))} options={VISUAL_CAPTIONS.map((o) => ({ value: o, label: o }))} />
+                </div>
+              </Row>
+              <Row gap={8}>
+                <Button variant="primary" onClick={setCustomVisual}>Set visual style</Button>
+                <Button variant="ghost" onClick={closeEditor}>Cancel</Button>
+              </Row>
+            </Stack>
+          )}
+        </Stack>
+      </div>
+    );
+  };
+
+  return (
+    <aside style={{ width: 360, flexShrink: 0, position: "sticky", top: 72, alignSelf: "flex-start", maxHeight: "calc(100vh - 88px)", overflowY: "auto" }}>
+      <div style={{ border: "1px solid " + theme.stroke.secondary, borderRadius: 14, background: theme.bg.elevated, padding: 16 }}>
+        {created ? (
+          <Stack gap={14}>
+            <Callout tone="success" title="Batch created">
+              <Text size="small"><span style={{ fontWeight: 600 }}>{created.name}</span> is queued with {created.lines.length} {created.lines.length === 1 ? "ingredient" : "ingredients"}. (Prototype — no render started.)</Text>
+            </Callout>
+            <Stack gap={8}>
+              {created.lines.map((l, i) => (
+                <Row key={i} gap={8} align="start">
+                  <span style={{ color: theme.text.tertiary, marginTop: 2 }}><ElIcon type={l.type} /></span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Row gap={6} align="center">
+                      <Text size="small" tone="tertiary" weight="medium" truncate>{TYPE_LABEL[l.type]} · {l.source}</Text>
+                      {ORIGIN_LABEL[l.origin] ? <Pill size="sm" active tone={l.origin === "uploaded" ? "info" : "neutral"}>{ORIGIN_LABEL[l.origin]}</Pill> : null}
+                    </Row>
+                    <Text size="small" truncate>{l.value}</Text>
+                  </div>
+                </Row>
+              ))}
+            </Stack>
+            <Button variant="primary" style={{ width: "100%" }} onClick={resetAll}>Start another batch</Button>
+          </Stack>
+        ) : (
+          <Stack gap={14}>
+            <Row align="center">
+              <Text weight="semibold">New Batch</Text>
+              <Spacer />
+              <Pill size="sm" active={count > 0} tone={count > 0 ? "info" : "neutral"}>{count} {count === 1 ? "ingredient" : "ingredients"}</Pill>
+            </Row>
+
+            <div>
+              <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>BATCH NAME</Text>
+              <TextInput value={batchName} onChange={setBatchName} placeholder="e.g. Maria — Persuasion x3" />
+            </div>
+
+            {note ? (
+              <Callout tone="info">
+                <Row align="center" gap={8}>
+                  <Text size="small" style={{ flex: 1 }}>{note}</Text>
+                  <IconButton title="Dismiss" size="sm" onClick={() => setNote("")}>✕</IconButton>
+                </Row>
+              </Callout>
+            ) : null}
+
+            <Stack gap={8}>
+              <Text size="small" tone="tertiary" weight="semibold" style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>Add your own</Text>
+              <Row gap={6} wrap style={{ rowGap: 6 }}>
+                {ALL_TYPES.map((t) => (
+                  <Pill key={t} size="sm" active={openType === t} leadingContent={<ElIcon type={t} size={11} />} onClick={() => setOpenType(openType === t ? "" : t)}>{TYPE_LABEL[t]}</Pill>
+                ))}
+              </Row>
+              {renderEditor()}
+            </Stack>
+
+            {count === 0 ? (
+              <Callout tone="neutral" title="Assemble a recipe">
+                <Text size="small">Tap the parts that worked on any winning video, or use “Add your own” above to write a script, pick a voice, or upload audio that isn’t on a video yet.</Text>
+              </Callout>
+            ) : (
+              <Stack gap={12}>
+                <ComposerGroup type="script" picks={sel.scripts} onRemove={(uid) => removeMulti("scripts", uid)} />
+                <ComposerSingle type="voiceover" pick={sel.voiceover} onRemove={() => removeSingle("voiceover")} />
+                <ComposerSingle type="soundtrack" pick={sel.soundtrack} onRemove={() => removeSingle("soundtrack")} />
+                <ComposerSingle type="creative" pick={sel.creative} onRemove={() => removeSingle("creative")} />
+                <ComposerGroup type="skill" picks={sel.skills} onRemove={(uid) => removeMulti("skills", uid)} />
+                <ComposerSingle type="visual" pick={sel.visual} onRemove={() => removeSingle("visual")} />
+              </Stack>
+            )}
+
+            <Divider />
+            <Row gap={8} align="center">
+              <Button variant="primary" disabled={count === 0} onClick={handleCreate}>Create Batch</Button>
+              {count > 0 ? <Button variant="ghost" onClick={resetAll}>Clear all</Button> : null}
+            </Row>
+          </Stack>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function TemplateLibrary() {
+  const theme = useHostTheme();
+  const [sel, setSel] = useCanvasState("tavern.selection.v2", EMPTY_SELECTION);
+  const [batchName, setBatchName] = useCanvasState("tavern.batchName", "");
+  const [note, setNote] = useCanvasState("tavern.note", "");
+  const [created, setCreated] = useCanvasState("tavern.created.v2", null);
+  const [filter, setFilter] = useCanvasState("tavern.filter", "All");
+
+  const toggle = (type, videoId) => {
+    if (created) return;
+    const v = videoById(videoId);
+    if (!v) return;
+    if (isMulti(type)) {
+      const key = selKey(type);
+      setSel((p) => {
+        const has = p[key].some((pk) => pk.videoId === videoId);
+        return { ...p, [key]: has ? p[key].filter((pk) => pk.videoId !== videoId) : [...p[key], videoPick(v, type)] };
+      });
+      setNote("");
+    } else {
+      const key = selKey(type);
+      const prev = sel[key];
+      if (prev && prev.videoId === videoId) {
+        setSel((p) => ({ ...p, [key]: null }));
+        setNote("");
+      } else {
+        if (prev) setNote("Replaced " + TYPE_LABEL[type] + " (only one allowed per batch) — dropped “" + (prev.origin === "video" ? prev.source : prev.value) + ".”");
+        else setNote("");
+        setSel((p) => ({ ...p, [key]: videoPick(v, type) }));
+      }
+    }
+  };
+
+  const useAll = (v) => {
+    if (created) return;
+    setSel((p) => ({
+      scripts: p.scripts.some((pk) => pk.videoId === v.id) ? p.scripts : [...p.scripts, videoPick(v, "script")],
+      skills: p.skills.some((pk) => pk.videoId === v.id) ? p.skills : [...p.skills, videoPick(v, "skill")],
+      voiceover: videoPick(v, "voiceover"),
+      soundtrack: videoPick(v, "soundtrack"),
+      creative: videoPick(v, "creative"),
+      visual: videoPick(v, "visual"),
+    }));
+    setNote("Loaded the full winning recipe from “" + v.title + ".”");
+  };
+
+  const shown = filter === "All" ? VIDEOS : VIDEOS.filter((v) => v.category === filter);
+  const topCtr = VIDEOS.reduce((m, v) => Math.max(m, parseFloat(v.ctr)), 0).toFixed(1);
+  const topVtr = VIDEOS.reduce((m, v) => Math.max(m, parseInt(v.vtr)), 0);
+
+  return (
+    <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px 48px" }}>
+      <Stack gap={22}>
+        <Stack gap={6}>
+          <Row align="center" wrap gap={12}>
+            <H1>Winning Videos</H1>
+            <Spacer />
+            <Row gap={6} align="center">
+              <Pill active tone="info">Start from a winning video</Pill>
+              <Pill onClick={() => { setSel(EMPTY_SELECTION); setCreated(null); setNote("Started a blank batch — add ingredients from any video below."); }}>Start blank</Pill>
+            </Row>
+          </Row>
+          <Text tone="secondary">Browse your best-performing ads and cherry-pick the parts that worked — mix a script from one, a voiceover from another, a soundtrack from a third — then assemble them into a new batch.</Text>
+        </Stack>
+
+        <Row gap={12} wrap>
+          <div style={{ flex: 1, minWidth: 120 }}><Stat value={String(VIDEOS.length)} label="Saved winning videos" /></div>
+          <div style={{ flex: 1, minWidth: 120 }}><Stat value={topCtr + "%"} label="Best click-through rate" tone="success" /></div>
+          <div style={{ flex: 1, minWidth: 120 }}><Stat value={topVtr + "%"} label="Best watch-through" tone="info" /></div>
+        </Row>
+
+        <Row gap={8} wrap align="center">
+          {CATEGORIES.map((c) => <Pill key={c} active={filter === c} onClick={() => setFilter(c)}>{c}</Pill>)}
+        </Row>
+
+        <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16, alignItems: "start" }}>
+              {shown.map((v) => <VideoCard key={v.id} v={v} sel={sel} onToggle={toggle} onUseAll={useAll} />)}
+            </div>
+          </div>
+          <Composer sel={sel} setSel={setSel} batchName={batchName} setBatchName={setBatchName} note={note} setNote={setNote} created={created} setCreated={setCreated} />
+        </div>
+      </Stack>
+    </div>
+  );
+}
+
+/* ================================================================
+   PROTOTYPE 2 — New Batch Flow (8-step wizard)
+   ================================================================ */
+
+const PROJECTS = [
+  { value: "dccc_test", label: "dccc_test" },
+  { value: "bixler_ads", label: "Bixler Ads" },
+  { value: "alani_mt", label: "Alani Bankhead MT" },
+  { value: "jake_play", label: "Jake - Play" },
+];
+const VOICE_ROSTER = [
+  { value: "rachel", label: "Rachel — ElevenLabs · Warm, trustworthy" },
+  { value: "marcus", label: "Marcus — ElevenLabs · Deep, authoritative" },
+  { value: "sofia", label: "Sofía — Play.ht · Bright, energetic" },
+  { value: "darnell", label: "Darnell — WellSaid · Smooth narrator" },
+  { value: "keiko", label: "Keiko — Azure Neural · Calm, precise" },
+  { value: "grace", label: "Grace — ElevenLabs · Empathetic, soft" },
+];
+const TRACKS = [
+  { value: "none", label: "No backing track" },
+  { value: "uplift", label: "Uplifting Corporate" },
+  { value: "tension", label: "Cinematic Tension" },
+  { value: "lofi", label: "Lo-fi Calm" },
+  { value: "epic", label: "Epic Trailer" },
+];
+const GRADES = ["Natural", "Warm", "Cool", "Cinematic", "Vibrant", "Black & White"];
+const FORMATS = ["Horizontal", "Vertical", "Both"];
+const CAPTIONS = ["None", "Standard", "Karaoke", "Word by word", "Subtitle", "Highlight"];
+const SKILLS = [
+  { id: "basic", name: "Basic Skill", blurb: "Message testing template - minimal styling" },
+  { id: "attack", name: "Political Attack Ad", blurb: "High-contrast, urgent pacing, bold captions" },
+  { id: "launch", name: "Product Launch", blurb: "Clean hero shots with confident motion" },
+  { id: "ugc", name: "UGC Testimonial", blurb: "Handheld, authentic, face-to-camera energy" },
+  { id: "broll", name: "Cinematic B-roll", blurb: "Slow push-ins, lush grading, ambient bed" },
+];
+const DEFAULT_SCRIPTS = [
+  { id: "msg_abc123", text: "Maria Torres will fight for our community." },
+  { id: "msg_def456", text: "After 20 years in public service, she's ready to lead." },
+];
+const RECIPES = [
+  { id: "testimonial", name: "Punchy Testimonial", blurb: "Vertical, fast cuts, karaoke captions. A top performer for social feeds.", seed: "tavern-testimonial", tags: ["Vertical", "Karaoke", "30s"],
+    patch: { voiceMode: "roster", voice: "rachel", track: "uplift", creative: "Authentic, face-to-camera testimonial energy. Warm grade, gentle handheld motion, quick cuts on key phrases.", broll: true, labels: ["testimonial", "community"], format: "Vertical", duration: 30, grade: "Warm", captions: "Karaoke", skills: ["ugc"] } },
+  { id: "cinematic", name: "Cinematic Brand Story", blurb: "Horizontal, lush b-roll and a narrator voice. Premium and emotional.", seed: "tavern-cinematic", tags: ["Horizontal", "Cinematic", "60s"],
+    patch: { voiceMode: "roster", voice: "darnell", track: "epic", creative: "Emotional, cinematic tone with slow push-ins and dramatic lighting. Lush color grade, sweeping ambient score.", broll: true, labels: ["brand", "story", "hero"], format: "Horizontal", duration: 60, grade: "Cinematic", captions: "Subtitle", skills: ["broll"] } },
+  { id: "promo", name: "Quick Promo", blurb: "Both formats, bright and energetic. Great for time-sensitive offers.", seed: "tavern-promo", tags: ["Both", "Standard", "15s"],
+    patch: { voiceMode: "roster", voice: "sofia", track: "uplift", creative: "Bright, energetic promo. Punchy on-screen text, vibrant grade, upbeat pacing that lands the offer fast.", broll: false, labels: ["promo", "offer"], format: "Both", duration: 15, grade: "Vibrant", captions: "Standard", skills: ["launch"] } },
+];
+const STEPS = ["Start", "Project", "Scripts", "Voice & Audio", "Creative", "Visual", "Skills", "Review"];
+
+const DEFAULT_CFG = {
+  project: "dccc_test", batchName: "", scripts: DEFAULT_SCRIPTS,
+  voiceMode: "agent", voice: "agent", voiceFile: "",
+  trackMode: "library", track: "none", trackFile: "",
+  creative: "", broll: true, labels: [], format: "Horizontal", duration: 30, grade: "Natural", captions: "Standard", skills: ["basic"],
+};
+
+function labelFor(list, value) { const f = list.find((o) => o.value === value); return f ? f.label : value; }
+function voiceSummary(cfg) {
+  if (cfg.voiceMode === "upload") return { label: cfg.voiceFile || "Upload pending", tag: "Uploaded" };
+  if (cfg.voiceMode === "roster") return { label: labelFor(VOICE_ROSTER, cfg.voice), tag: "Roster" };
+  return { label: "Agent decides" };
+}
+function trackSummary(cfg) {
+  if (cfg.trackMode === "upload") return { label: cfg.trackFile || "Upload pending", tag: "Uploaded" };
+  return { label: labelFor(TRACKS, cfg.track) };
+}
+function CheckMark({ color }) {
+  return (<svg width={12} height={12} viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2l2.3 2.3L9.5 3.5" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" /></svg>);
+}
+
+function MockUpload({ stateKey, currentFile, placeholder, suggestions, onUpload }) {
+  const theme = useHostTheme();
+  const [draft, setDraft] = useCanvasState(stateKey, "");
+  const commit = (f) => { const t = f.trim(); if (!t) return; onUpload(t); setDraft(""); };
+  return (
+    <Stack gap={8}>
+      {currentFile ? (
+        <Row gap={8} align="center" style={{ border: "1px solid " + theme.stroke.secondary, borderRadius: 9, padding: "8px 10px", background: theme.fill.tertiary }}>
+          <Text size="small" weight="medium" style={{ flex: 1 }}>{currentFile}</Text>
+          <Pill size="sm" active tone="info">Uploaded</Pill>
+        </Row>
+      ) : null}
+      <Row gap={8} align="center">
+        <div style={{ flex: 1 }}><TextInput value={draft} onChange={setDraft} placeholder={placeholder} /></div>
+        <Button variant="secondary" disabled={!draft.trim()} onClick={() => commit(draft)}>Upload</Button>
+      </Row>
+      <Row gap={6} wrap style={{ rowGap: 6 }}>
+        {suggestions.map((f) => <Pill key={f} size="sm" onClick={() => commit(f)}>{f}</Pill>)}
+      </Row>
+    </Stack>
+  );
+}
+
+function Stepper({ current, furthest, onJump }) {
+  const theme = useHostTheme();
+  return (
+    <Row gap={0} align="center" wrap style={{ rowGap: 8 }}>
+      {STEPS.map((label, i) => {
+        const done = i < furthest;
+        const active = i === current;
+        const reachable = i <= furthest;
+        const circleBg = active ? theme.accent.primary : done ? theme.fill.secondary : "transparent";
+        const circleBorder = active ? theme.accent.primary : reachable ? theme.stroke.primary : theme.stroke.tertiary;
+        const numColor = active ? theme.text.onAccent : reachable ? theme.text.secondary : theme.text.quaternary;
+        return (
+          <Row key={label} gap={0} align="center">
+            <div onClick={() => (reachable ? onJump(i) : undefined)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: reachable ? "pointer" : "default", padding: "4px 6px", borderRadius: 8 }}>
+              <div style={{ width: 22, height: 22, borderRadius: 999, background: circleBg, border: "1px solid " + circleBorder, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: numColor, flexShrink: 0 }}>
+                {done ? <CheckMark color={theme.text.secondary} /> : i + 1}
+              </div>
+              <Text size="small" weight={active ? "semibold" : "normal"} tone={active ? "primary" : reachable ? "secondary" : "quaternary"}>{label}</Text>
+            </div>
+            {i < STEPS.length - 1 ? <div style={{ width: 18, height: 1, background: done ? theme.accent.primary : theme.stroke.tertiary, margin: "0 2px" }} /> : null}
+          </Row>
+        );
+      })}
+    </Row>
+  );
+}
+
+function Field({ label, hint, children }) {
+  return (
+    <Stack gap={6}>
+      <Text size="small" weight="semibold" tone="secondary">{label}</Text>
+      {children}
+      {hint ? <Text size="small" tone="tertiary">{hint}</Text> : null}
+    </Stack>
+  );
+}
+
+function Segmented({ options, value, onChange }) {
+  return (
+    <Row gap={8} wrap style={{ rowGap: 8 }}>
+      {options.map((opt) => <Pill key={opt} active={opt === value} onClick={() => onChange(opt)}>{opt}</Pill>)}
+    </Row>
+  );
+}
+
+function SelectableCard({ selected, onClick, children }) {
+  const theme = useHostTheme();
+  return (
+    <div onClick={onClick} style={{ cursor: "pointer", borderRadius: 12, border: "1px solid " + (selected ? theme.accent.primary : theme.stroke.secondary), background: selected ? theme.fill.secondary : theme.bg.elevated, padding: 14, transition: "border-color 120ms ease, background 120ms ease" }}>
+      {children}
+    </div>
+  );
+}
+
+function PreviewThumb({ format, seed }) {
+  const theme = useHostTheme();
+  const frame = (w, h, key) => (
+    <div key={key} style={{ width: w, height: h, borderRadius: 8, overflow: "hidden", border: "1px solid " + theme.stroke.secondary, background: theme.fill.tertiary, flexShrink: 0 }}>
+      <FlatPoster seed={seed + key} />
+    </div>
+  );
+  return (
+    <Row gap={8} align="center" justify="center" style={{ padding: "4px 0" }}>
+      {format === "Vertical" ? frame(72, 128, "v") : format === "Both" ? (<React.Fragment>{frame(112, 63, "h")}{frame(40, 71, "v")}</React.Fragment>) : frame(180, 101, "h")}
+    </Row>
+  );
+}
+
+function SummaryRow({ label, value, tag }) {
+  return (
+    <Row gap={8} align="start" justify="space-between">
+      <Text size="small" tone="tertiary" style={{ flexShrink: 0 }}>{label}</Text>
+      <Row gap={6} align="center" style={{ minWidth: 0, justifyContent: "flex-end" }}>
+        {tag ? <Pill size="sm" active tone={tag === "Uploaded" ? "info" : "neutral"}>{tag}</Pill> : null}
+        <Text size="small" weight="medium" truncate style={{ textAlign: "right" }}>{value}</Text>
+      </Row>
+    </Row>
+  );
+}
+
+function SummaryPanel({ cfg }) {
+  const theme = useHostTheme();
+  const formatCount = cfg.format === "Both" ? 2 : 1;
+  const outputs = cfg.scripts.length * formatCount;
+  const vs = voiceSummary(cfg);
+  const ts = trackSummary(cfg);
+  return (
+    <Card>
+      <CardHeader trailing={<Pill size="sm" tone="info">Live</Pill>}>Your recipe</CardHeader>
+      <CardBody>
+        <Stack gap={14}>
+          <PreviewThumb format={cfg.format} seed={cfg.scripts[0] ? cfg.scripts[0].id : "tavern"} />
+          <div style={{ textAlign: "center", padding: "10px 0", borderRadius: 10, background: theme.fill.tertiary }}>
+            <Text weight="semibold" style={{ fontSize: 22 }}>{String(outputs)}</Text>
+            <Text size="small" tone="tertiary">videos to render</Text>
+          </div>
+          <Stack gap={8}>
+            <SummaryRow label="Project" value={labelFor(PROJECTS, cfg.project)} />
+            <SummaryRow label="Batch" value={cfg.batchName || "Untitled"} />
+            <SummaryRow label="Scripts" value={String(cfg.scripts.length)} />
+            <SummaryRow label="Voice" value={vs.label} tag={vs.tag} />
+            <SummaryRow label="Music" value={ts.label} tag={ts.tag} />
+            <SummaryRow label="Format" value={cfg.format} />
+            <SummaryRow label="Length" value={cfg.duration + "s"} />
+            <SummaryRow label="Grade" value={cfg.grade} />
+            <SummaryRow label="Captions" value={cfg.captions} />
+            <SummaryRow label="B-roll" value={cfg.broll ? "On" : "Off"} />
+          </Stack>
+          {cfg.skills.length > 0 ? (
+            <React.Fragment>
+              <Divider />
+              <Stack gap={6}>
+                <Text size="small" tone="tertiary">Skills</Text>
+                <Row gap={6} wrap style={{ rowGap: 6 }}>
+                  {cfg.skills.map((s) => { const sk = SKILLS.find((x) => x.id === s); return <Pill key={s} size="sm" active>{sk ? sk.name : s}</Pill>; })}
+                </Row>
+              </Stack>
+            </React.Fragment>
+          ) : null}
+        </Stack>
+      </CardBody>
+    </Card>
+  );
+}
+
+function ScriptsEditor({ cfg, patch }) {
+  const theme = useHostTheme();
+  const update = (i, text) => patch({ scripts: cfg.scripts.map((s, idx) => (idx === i ? { ...s, text } : s)) });
+  const remove = (i) => patch({ scripts: cfg.scripts.filter((_, idx) => idx !== i) });
+  const add = () => patch({ scripts: [...cfg.scripts, { id: "msg_" + Math.random().toString(36).slice(2, 8), text: "" }] });
+  return (
+    <Stack gap={10}>
+      {cfg.scripts.map((s, i) => (
+        <div key={s.id} style={{ border: "1px solid " + theme.stroke.secondary, borderRadius: 10, padding: 12, background: theme.bg.elevated }}>
+          <Row gap={8} align="center">
+            <Text size="small" weight="semibold" tone="secondary">Script {i + 1}</Text>
+            <Pill size="sm">{s.id}</Pill>
+            <Spacer />
+            {cfg.scripts.length > 1 ? <div onClick={() => remove(i)} style={{ cursor: "pointer", color: theme.text.tertiary, fontSize: 12, padding: 4 }}>Remove</div> : null}
+          </Row>
+          <div style={{ height: 8 }} />
+          <TextInput value={s.text} onChange={(v) => update(i, v)} placeholder="What should this video say?" />
+        </div>
+      ))}
+      <Row><Button variant="secondary" onClick={add}>+ Add another script</Button></Row>
+    </Stack>
+  );
+}
+
+function ChipInput({ values, placeholder, onAdd, onRemove }) {
+  const [draft, setDraft] = useCanvasState("nbf.labelDraft", "");
+  const commit = () => { const t = draft.trim(); if (t.length > 0 && !values.includes(t)) onAdd(t); setDraft(""); };
+  return (
+    <Stack gap={8}>
+      <Row gap={8} align="center">
+        <div style={{ flex: 1 }}><TextInput value={draft} onChange={setDraft} placeholder={placeholder} /></div>
+        <Button variant="secondary" onClick={commit}>Add</Button>
+      </Row>
+      {values.length > 0 ? (
+        <Row gap={6} wrap style={{ rowGap: 6 }}>
+          {values.map((v) => <Pill key={v} active onClick={() => onRemove(v)}>{v}  ✕</Pill>)}
+        </Row>
+      ) : null}
+    </Stack>
+  );
+}
+
+function StepBody(props) {
+  const { step, cfg, patch, entry, setEntry, selectedRecipe, onPickRecipe } = props;
+  const theme = useHostTheme();
+
+  if (step === 0) {
+    return (
+      <Stack gap={18}>
+        <Stack gap={4}>
+          <Text weight="semibold" style={{ fontSize: 18 }}>How would you like to start?</Text>
+          <Text tone="secondary">Begin from a proven template, or build a batch from scratch. You can change anything later.</Text>
+        </Stack>
+        <Grid columns={2} gap={12}>
+          <SelectableCard selected={entry === "recipe"} onClick={() => setEntry("recipe")}>
+            <Stack gap={6}>
+              <Pill size="sm" tone="success">Recommended</Pill>
+              <Text weight="semibold">Use a winning recipe</Text>
+              <Text size="small" tone="secondary">Prefill every setting from a template that already performs well, then tweak.</Text>
+            </Stack>
+          </SelectableCard>
+          <SelectableCard selected={entry === "scratch"} onClick={() => setEntry("scratch")}>
+            <Stack gap={6}>
+              <Pill size="sm">Full control</Pill>
+              <Text weight="semibold">Start from scratch</Text>
+              <Text size="small" tone="secondary">Smart defaults are pre-selected. Step through and adjust only what you need.</Text>
+            </Stack>
+          </SelectableCard>
+        </Grid>
+        {entry === "recipe" ? (
+          <Stack gap={10}>
+            <Text size="small" weight="semibold" tone="secondary">Pick a recipe to prefill</Text>
+            <Grid columns={3} gap={12}>
+              {RECIPES.map((r) => (
+                <SelectableCard key={r.id} selected={selectedRecipe === r.id} onClick={() => onPickRecipe(r)}>
+                  <Stack gap={8}>
+                    <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid " + theme.stroke.tertiary, height: 96 }}>
+                      <FlatPoster seed={r.seed} play />
+                    </div>
+                    <Text weight="semibold">{r.name}</Text>
+                    <Text size="small" tone="secondary">{r.blurb}</Text>
+                    <Row gap={6} wrap style={{ rowGap: 6 }}>{r.tags.map((t) => <Pill key={t} size="sm">{t}</Pill>)}</Row>
+                  </Stack>
+                </SelectableCard>
+              ))}
+            </Grid>
+            <Callout tone="info">Browse the full <span style={{ fontWeight: 600 }}>Template Library</span> to save your best batches as reusable recipes for the whole team.</Callout>
+          </Stack>
+        ) : null}
+      </Stack>
+    );
+  }
+
+  if (step === 1) {
+    return (
+      <Stack gap={18}>
+        <Field label="Project" hint="Where these videos will live."><Select value={cfg.project} onChange={(v) => patch({ project: v })} options={PROJECTS} /></Field>
+        <Field label="Batch name" hint="Give this run a name you'll recognize later."><TextInput value={cfg.batchName} onChange={(v) => patch({ batchName: v })} placeholder="e.g. Q3 Launch - Variant A" /></Field>
+      </Stack>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <Stack gap={16}>
+        <Stack gap={4}>
+          <Text weight="semibold" style={{ fontSize: 16 }}>What should the videos say?</Text>
+          <Text size="small" tone="secondary">Each script becomes its own ad. Write in plain language - the agent handles pacing and delivery.</Text>
+        </Stack>
+        <ScriptsEditor cfg={cfg} patch={patch} />
+      </Stack>
+    );
+  }
+
+  if (step === 3) {
+    const voiceModeLabel = cfg.voiceMode === "agent" ? "Agent decides" : cfg.voiceMode === "roster" ? "Pick from roster" : "Upload your own";
+    const onVoiceMode = (lbl) => {
+      const mode = lbl === "Agent decides" ? "agent" : lbl === "Pick from roster" ? "roster" : "upload";
+      const needsDefault = mode === "roster" && (!cfg.voice || cfg.voice === "agent");
+      patch(needsDefault ? { voiceMode: mode, voice: VOICE_ROSTER[0].value } : { voiceMode: mode });
+    };
+    const trackModeLabel = cfg.trackMode === "upload" ? "Upload audio" : "From library";
+    const onTrackMode = (lbl) => patch({ trackMode: lbl === "Upload audio" ? "upload" : "library" });
+    return (
+      <Stack gap={18}>
+        <Field label="Voiceover" hint="Let the agent match a voice, choose from the roster, or upload your own take.">
+          <Stack gap={10}>
+            <Segmented options={["Agent decides", "Pick from roster", "Upload your own"]} value={voiceModeLabel} onChange={onVoiceMode} />
+            {cfg.voiceMode === "agent" ? <Callout tone="neutral">The agent auto-matches a voice to each script based on tone and pacing.</Callout> : null}
+            {cfg.voiceMode === "roster" ? <Select value={cfg.voice && cfg.voice !== "agent" ? cfg.voice : VOICE_ROSTER[0].value} onChange={(v) => patch({ voice: v })} options={VOICE_ROSTER} /> : null}
+            {cfg.voiceMode === "upload" ? <MockUpload stateKey="nbf.voUpload" currentFile={cfg.voiceFile} placeholder="my-vo-take3.mp3" suggestions={MOCK_VO_FILES} onUpload={(f) => patch({ voiceFile: f })} /> : null}
+          </Stack>
+        </Field>
+        <Field label="Backing track" hint="Pick from the library or upload your own audio. Music is mixed under the voiceover at a safe level.">
+          <Stack gap={10}>
+            <Segmented options={["From library", "Upload audio"]} value={trackModeLabel} onChange={onTrackMode} />
+            {cfg.trackMode === "library" ? <Select value={cfg.track} onChange={(v) => patch({ track: v })} options={TRACKS} /> : null}
+            {cfg.trackMode === "upload" ? <MockUpload stateKey="nbf.trackUpload" currentFile={cfg.trackFile} placeholder="campaign-bed-loop.mp3" suggestions={MOCK_AUDIO_FILES} onUpload={(f) => patch({ trackFile: f })} /> : null}
+          </Stack>
+        </Field>
+      </Stack>
+    );
+  }
+
+  if (step === 4) {
+    return (
+      <Stack gap={18}>
+        <Field label="Creative direction" hint="Describe the vibe in your own words. Examples: 'warm and hopeful', 'urgent, high-contrast'.">
+          <TextArea value={cfg.creative} onChange={(v) => patch({ creative: v })} rows={4} placeholder="Emotional, hopeful tone with slow zoom-ins and warm color grading." />
+        </Field>
+        <Row align="center" gap={12}>
+          <Stack gap={2}>
+            <Text size="small" weight="semibold" tone="secondary">Include b-roll footage</Text>
+            <Text size="small" tone="tertiary">Pull supporting clips from your shared video library.</Text>
+          </Stack>
+          <Spacer />
+          <Toggle checked={cfg.broll} onChange={(v) => patch({ broll: v })} />
+        </Row>
+        <Field label="Search labels" hint="Tags that guide which b-roll clips get pulled.">
+          <ChipInput values={cfg.labels} placeholder="Type a label and press Add" onAdd={(v) => patch({ labels: [...cfg.labels, v] })} onRemove={(v) => patch({ labels: cfg.labels.filter((x) => x !== v) })} />
+        </Field>
+      </Stack>
+    );
+  }
+
+  if (step === 5) {
+    return (
+      <Stack gap={18}>
+        <Field label="Output format" hint="Both renders a 16:9 and a 9:16 cut of every script."><Segmented options={FORMATS} value={cfg.format} onChange={(v) => patch({ format: v })} /></Field>
+        <Row gap={12} align="end" wrap style={{ rowGap: 12 }}>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <Field label="Duration"><Select value={String(cfg.duration)} onChange={(v) => patch({ duration: Number(v) })} options={[15, 30, 45, 60].map((d) => ({ value: String(d), label: d + " seconds" }))} /></Field>
+          </div>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <Field label="Color grade"><Select value={cfg.grade} onChange={(v) => patch({ grade: v })} options={GRADES.map((g) => ({ value: g, label: g }))} /></Field>
+          </div>
+        </Row>
+        <Field label="Captions" hint="How on-screen text animates with the voiceover."><Segmented options={CAPTIONS} value={cfg.captions} onChange={(v) => patch({ captions: v })} /></Field>
+        <Callout tone="neutral">Resolution and frame rate use studio defaults (1080p, 30fps). Adjust these in advanced settings if needed.</Callout>
+      </Stack>
+    );
+  }
+
+  if (step === 6) {
+    return (
+      <Stack gap={14}>
+        <Stack gap={4}>
+          <Text weight="semibold" style={{ fontSize: 16 }}>Apply skills</Text>
+          <Text size="small" tone="secondary">Skills are reusable style presets. Select any that fit - they layer on top of your creative direction.</Text>
+        </Stack>
+        <Grid columns={2} gap={12}>
+          {SKILLS.map((sk) => {
+            const on = cfg.skills.includes(sk.id);
+            return (
+              <SelectableCard key={sk.id} selected={on} onClick={() => patch({ skills: on ? cfg.skills.filter((x) => x !== sk.id) : [...cfg.skills, sk.id] })}>
+                <Row gap={10} align="start">
+                  <Stack gap={4} style={{ flex: 1 }}>
+                    <Text weight="semibold">{sk.name}</Text>
+                    <Text size="small" tone="secondary">{sk.blurb}</Text>
+                  </Stack>
+                  {on ? <Pill size="sm" tone="success">On</Pill> : null}
+                </Row>
+              </SelectableCard>
+            );
+          })}
+        </Grid>
+      </Stack>
+    );
+  }
+
+  const formatCount = cfg.format === "Both" ? 2 : 1;
+  const outputs = cfg.scripts.length * formatCount;
+  const vs = voiceSummary(cfg);
+  const ts = trackSummary(cfg);
+  return (
+    <Stack gap={16}>
+      <Stack gap={4}>
+        <Text weight="semibold" style={{ fontSize: 16 }}>Review and create</Text>
+        <Text size="small" tone="secondary">This batch will render <span style={{ fontWeight: 600 }}>{String(outputs)}</span> videos from {String(cfg.scripts.length)} script{cfg.scripts.length === 1 ? "" : "s"}.</Text>
+      </Stack>
+      <Card>
+        <CardHeader>Scripts</CardHeader>
+        <CardBody>
+          <Stack gap={8}>
+            {cfg.scripts.map((s, i) => (
+              <Row key={s.id} gap={8} align="start">
+                <Text size="small" tone="tertiary" style={{ flexShrink: 0 }}>{i + 1}.</Text>
+                <Text size="small">{s.text || "(empty)"}</Text>
+              </Row>
+            ))}
+          </Stack>
+        </CardBody>
+      </Card>
+      <Grid columns={2} gap={12}>
+        <Card>
+          <CardHeader>Voice & audio</CardHeader>
+          <CardBody><Stack gap={8}><SummaryRow label="Voice" value={vs.label} tag={vs.tag} /><SummaryRow label="Track" value={ts.label} tag={ts.tag} /></Stack></CardBody>
+        </Card>
+        <Card>
+          <CardHeader>Visual style</CardHeader>
+          <CardBody><Stack gap={8}><SummaryRow label="Format" value={cfg.format} /><SummaryRow label="Duration" value={cfg.duration + "s"} /><SummaryRow label="Grade" value={cfg.grade} /><SummaryRow label="Captions" value={cfg.captions} /></Stack></CardBody>
+        </Card>
+      </Grid>
+      {cfg.creative.trim().length > 0 ? (
+        <Card><CardHeader>Creative direction</CardHeader><CardBody><Text size="small">{cfg.creative}</Text></CardBody></Card>
+      ) : null}
+    </Stack>
+  );
+}
+
+function CreatedScreen({ cfg, onReset }) {
+  const theme = useHostTheme();
+  const formatCount = cfg.format === "Both" ? 2 : 1;
+  const outputs = cfg.scripts.length * formatCount;
+  return (
+    <Stack gap={20} style={{ maxWidth: 560, margin: "0 auto", paddingTop: 24 }}>
+      <Stack gap={10} style={{ alignItems: "center", textAlign: "center" }}>
+        <div style={{ width: 48, height: 48, borderRadius: 999, background: theme.fill.secondary, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <CheckMark color={theme.accent.primary} />
+        </div>
+        <H1>Batch queued</H1>
+        <Text tone="secondary"><span style={{ fontWeight: 600 }}>{cfg.batchName || "Untitled batch"}</span> is now rendering {String(outputs)} videos in {labelFor(PROJECTS, cfg.project)}.</Text>
+      </Stack>
+      <Grid columns={3} gap={12}>
+        <Card><CardBody><Stack gap={2} style={{ alignItems: "center" }}><Text weight="semibold" style={{ fontSize: 22 }}>{String(outputs)}</Text><Text size="small" tone="tertiary">queued</Text></Stack></CardBody></Card>
+        <Card><CardBody><Stack gap={2} style={{ alignItems: "center" }}><Text weight="semibold" style={{ fontSize: 22 }}>{cfg.format}</Text><Text size="small" tone="tertiary">format</Text></Stack></CardBody></Card>
+        <Card><CardBody><Stack gap={2} style={{ alignItems: "center" }}><Text weight="semibold" style={{ fontSize: 22 }}>{cfg.duration + "s"}</Text><Text size="small" tone="tertiary">length</Text></Stack></CardBody></Card>
+      </Grid>
+      <Callout tone="success" title="What happens next">You'll get a notification as each video finishes. Track progress on the batch detail page.</Callout>
+      <Row justify="center"><Button variant="secondary" onClick={onReset}>Create another batch</Button></Row>
+    </Stack>
+  );
+}
+
+function NewBatchFlow() {
+  const theme = useHostTheme();
+  const [cfg, setCfg] = useCanvasState("nbf.cfg.v2", DEFAULT_CFG);
+  const [step, setStep] = useCanvasState("nbf.step", 0);
+  const [furthest, setFurthest] = useCanvasState("nbf.furthest", 0);
+  const [entry, setEntry] = useCanvasState("nbf.entry", "");
+  const [selectedRecipe, setSelectedRecipe] = useCanvasState("nbf.recipe", "");
+  const [created, setCreated] = useCanvasState("nbf.created", false);
+
+  const patch = (p) => setCfg((prev) => ({ ...prev, ...p }));
+  const goTo = (i) => { const next = Math.max(0, Math.min(STEPS.length - 1, i)); setStep(next); setFurthest((f) => Math.max(f, next)); };
+  const onPickRecipe = (r) => { setSelectedRecipe(r.id); patch(r.patch); };
+  const reset = () => { setCfg(DEFAULT_CFG); setStep(0); setFurthest(0); setEntry(""); setSelectedRecipe(""); setCreated(false); };
+
+  if (created) {
+    return <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px" }}><CreatedScreen cfg={cfg} onReset={reset} /></div>;
+  }
+
+  const isLast = step === STEPS.length - 1;
+  const canContinue = step !== 0 || entry === "scratch" || (entry === "recipe" && selectedRecipe !== "");
+  const showSkip = step >= 4 && step <= 6;
+
+  return (
+    <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px" }}>
+      <Stack gap={20} style={{ maxWidth: 1040, margin: "0 auto" }}>
+        <Stack gap={4}>
+          <H1>New Batch</H1>
+          <Text tone="secondary">A guided way to turn scripts into finished ad videos.</Text>
+        </Stack>
+        <div style={{ border: "1px solid " + theme.stroke.tertiary, borderRadius: 12, padding: "12px 14px", background: theme.bg.chrome }}>
+          <Stepper current={step} furthest={furthest} onJump={goTo} />
+        </div>
+        <Grid columns="1fr 320px" gap={20} align="start">
+          <Card>
+            <CardHeader>{STEPS[step]}</CardHeader>
+            <CardBody>
+              <StepBody step={step} cfg={cfg} patch={patch} entry={entry} setEntry={setEntry} selectedRecipe={selectedRecipe} onPickRecipe={onPickRecipe} />
+              <div style={{ height: 20 }} />
+              <Divider />
+              <div style={{ height: 16 }} />
+              <Row gap={8} align="center">
+                <Button variant="ghost" disabled={step === 0} onClick={() => goTo(step - 1)}>Back</Button>
+                <Spacer />
+                {showSkip ? <Button variant="ghost" onClick={() => goTo(STEPS.length - 1)}>Skip to review</Button> : null}
+                {isLast ? <Button variant="primary" onClick={() => setCreated(true)}>Create Batch</Button> : <Button variant="primary" disabled={!canContinue} onClick={() => goTo(step + 1)}>Continue</Button>}
+              </Row>
+            </CardBody>
+          </Card>
+          <SummaryPanel cfg={cfg} />
+        </Grid>
+      </Stack>
+    </div>
+  );
+}
+
+/* ================================================================
+   App shell — top tab switcher between the two prototypes
+   ================================================================ */
+function App() {
+  const [tab, setTab] = useState("library");
+  const tabs = [["library", "Winning Videos Library"], ["batch", "New Batch Flow"]];
+  return (
+    <div style={{ minHeight: "100vh", background: THEME.bg.editor }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.78)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + THEME.stroke.secondary, padding: "10px 20px", display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: THEME.text.primary }}>Tavern · UX Prototype</div>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: "inline-flex", background: THEME.fill.secondary, borderRadius: 999, padding: 3, gap: 3 }}>
+          {tabs.map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{ border: "none", borderRadius: 999, padding: "7px 16px", fontSize: 13, fontWeight: 500, cursor: "pointer", background: tab === id ? "#fff" : "transparent", color: tab === id ? THEME.text.primary : THEME.text.secondary, boxShadow: tab === id ? "0 1px 2px rgba(0,0,0,0.08)" : "none", transition: "background 120ms ease" }}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: tab === "library" ? "block" : "none" }}><TemplateLibrary /></div>
+      <div style={{ display: tab === "batch" ? "block" : "none" }}><NewBatchFlow /></div>
+    </div>
+  );
+}
+
+const rootEl = document.getElementById("root");
+rootEl.innerHTML = "";
+ReactDOM.createRoot(rootEl).render(<App />);
+</script>
+</body>
+</html>
