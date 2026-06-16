@@ -1424,7 +1424,7 @@ function NewBatchFlow() {
 }
 
 /* ================================================================
-   PROTOTYPE 3 — Bulk Voiceovers
+   PROTOTYPE 3 — Bulk Studio
    ================================================================ */
 
 const LIBRARY_SCRIPTS = VIDEOS.map((v) => ({ id: v.script.id, title: v.title, text: v.script.text }));
@@ -1575,7 +1575,7 @@ function SkillCard({ skill, onUseInBatch }) {
                 {usedIn.map((v) => <Pill key={v.id} size="sm" tone={v.badgeTone || "neutral"} active>{v.title}</Pill>)}
               </Row>
             ) : (
-              <Text size="small" tone="tertiary">Not yet used in a winning video — try it on a new bulk row.</Text>
+              <Text size="small" tone="tertiary">Not yet used in a winning video — try it on a new Bulk Studio row.</Text>
             )}
           </Stack>
           <Button variant="primary" style={{ width: "100%" }} onClick={() => onUseInBatch(skill)}>Use in new batch</Button>
@@ -1605,7 +1605,7 @@ function SkillsLibrary({ onUseSkill }) {
             <Spacer />
             <Pill size="sm" active tone="info">{TEMPLATES.length} templates</Pill>
           </Row>
-          <Text tone="secondary">Browse the full template library — every skill that the Bulk Voiceovers and New Batch flows can layer onto a video. Each card shows what the look is, which winning videos use it, and a one-click action to start a new bulk row pre-attached with this skill.</Text>
+          <Text tone="secondary">Browse the full template library — every skill that the Bulk Studio and New Batch flows can layer onto a video. Each card shows what the look is, which winning videos use it, and a one-click action to start a new Bulk Studio row pre-attached with this skill.</Text>
         </Stack>
 
         <Row gap={10} wrap style={{ rowGap: 8 }}>
@@ -1950,11 +1950,11 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
       <Stack gap={20} style={{ maxWidth: 980, margin: "0 auto" }}>
         <Stack gap={6}>
           <Row align="center" wrap gap={12}>
-            <H1>Bulk Voiceovers</H1>
+            <H1>Bulk Studio</H1>
             <Spacer />
             <Pill active={rows.length > 0} tone={counterTone}>{rows.length} / {BULK_MAX}</Pill>
           </Row>
-          <Text tone="secondary">Build up to {BULK_MAX} videos at once. Each video expands into the same six-ingredient editor as a Winning Videos card — script, voiceover, soundtrack, creative direction, skills (multi) and visual style. Pull a winning video to prefill the whole recipe, then fine-tune any field.</Text>
+          <Text tone="secondary">Assemble up to {BULK_MAX} videos in one pass — pull from winning recipes, bulk-upload scripts and voiceovers, then fine-tune each video's full recipe (script, voiceover, soundtrack, creative direction, skills, visual style) in the same Library-style card UI.</Text>
         </Stack>
 
         <Card>
@@ -2360,7 +2360,7 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
 function App() {
   const [tab, setTab] = useState("library");
   const [pendingBulkSkill, setPendingBulkSkill] = useState(null);
-  const tabs = [["library", "Winning Videos Library"], ["batch", "New Batch Flow"], ["bulk", "Bulk Voiceovers"], ["skills", "Skills"]];
+  const tabs = [["library", "Winning Videos Library"], ["batch", "New Batch Flow"], ["bulk", "Bulk Studio"], ["skills", "Skills"]];
   return (
     <div style={{ minHeight: "100vh", background: THEME.bg.editor }}>
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.78)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + THEME.stroke.secondary, padding: "10px 20px", display: "flex", alignItems: "center", gap: 16 }}>

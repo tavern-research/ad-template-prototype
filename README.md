@@ -19,12 +19,12 @@ skill the bulk and new-batch flows can layer onto a video. Each skill renders as
 Library-style card with a flat poster preview, the kebab-id name (e.g. `front-porch-positive`),
 a one-sentence description, an inferred tone (Positive / Contrast / Persuasion), and chips
 listing which winning videos use it. A **Use in new batch** button on each card jumps to
-**Bulk Voiceovers** and creates a fresh row pre-attached with that skill in its
+**Bulk Studio** and creates a fresh row pre-attached with that skill in its
 multi-skill chip set. The header has a stat strip (skills in library, used by winning
 videos, winning videos covered) and filter pills (All / Used / Unused / Positive /
 Contrast / Persuasion).
 
-In Bulk Voiceovers, **each expanded video card now matches the Winning Videos library card
+In Bulk Studio, **each expanded video card now matches the Winning Videos library card
 visually**: video-sourced rows render with the flat-color **poster + play glyph + duration
 and format chips + performance badge**, the title + category, and the **CTR / Views /
 Watch-through** stat strip — exactly like a winning-video card — followed by the same six
@@ -42,7 +42,7 @@ English fallback). The button is disabled with the tooltip "Add or generate a vo
 preview" until a voice is set, and the card honestly notes "Audio preview unavailable in this
 browser" if `speechSynthesis` is missing. Audio is cleaned up on stop, row removal, or unmount.
 
-A third tab — **Bulk Voiceovers** — lets you build a batch of up to **50 videos** at once,
+A third tab — **Bulk Studio** — lets you build a batch of up to **50 videos** at once,
 where **each video expands into the same six-ingredient editor as a Winning Videos card**.
 Collapsed, a card shows a compact summary (index, title, voiceover status, ingredient
 indicators, and a **skills: N** count); expand it and you get the familiar Library-style rows
@@ -63,7 +63,7 @@ punctuation/spaces/extension) — unmatched audio becomes new script-blank rows 
 **Roster / Generate / Upload / From a winning video**, with origin tags. The primary CTA —
 **"Generate N videos"** — validates every card has a voiceover (expanding and pointing you
 to unresolved ones) and confirms the full per-video recipe. See
-[Bulk Voiceovers](#3-bulk-voiceovers) below for details.
+[Bulk Studio](#3-bulk-studio) below for details.
 
 ## What you can do in it
 
@@ -95,10 +95,12 @@ A guided **8-step wizard** that replaces the cramped single form: Start → Proj
 - Voice & Audio supports *Agent decides / pick from a roster / upload your own*, and the
   backing track supports *pick from the library / upload audio* — all tagged by source.
 
-### 3. Bulk Voiceovers
+### 3. Bulk Studio
 *(new in v2)* A workspace for building a batch of videos at once, where **each video expands
 into the same six-ingredient editor as a Winning Videos card** — not just a script + voiceover
-row.
+row. Pull from winning recipes, bulk-upload scripts and voiceovers, and fine-tune each
+video's full recipe (script, voiceover, soundtrack, creative direction, skills, visual
+style) in one place.
 
 - **Build up to 50 videos.** A running **N / 50** counter is shown, and "add" is disabled with a
   gentle note once you hit the cap. **Expand all / Collapse all** keeps the list scannable, and
@@ -168,7 +170,7 @@ can layer onto a video. Each skill renders as a Library-style card:
 - **Kebab-id name** (e.g. `front-porch-positive`) plus a one-sentence description, an
   inferred **tone tag** (Positive / Contrast / Persuasion), and a "Used in N winning videos"
   count with chip-listed video titles colored by their performance badge.
-- **Use in new batch** button — jumps to **Bulk Voiceovers** and creates a fresh row pre-
+- **Use in new batch** button — jumps to **Bulk Studio** and creates a fresh row pre-
   attached with that skill in its multi-skill chip set, expanded and ready to fill in script
   and voiceover.
 - The header shows a stat strip (skills in library, used by winning videos, winning videos
