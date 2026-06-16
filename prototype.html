@@ -36,7 +36,7 @@
      2) New Batch Flow (new-batch-flow.canvas.tsx)
    No build step, no external CSS/JS beyond React + Babel CDN.
    ================================================================ */
-const { useState } = React;
+const { useState, useRef } = React;
 
 /* ---------------- Theme (Apple-clean LIGHT) ---------------- */
 const THEME = {
@@ -1455,6 +1455,108 @@ function NumberBadge({ n }) {
   );
 }
 
+/* ----- Bulk upload helpers (script files + audio multi-upload with filename pairing) ----- */
+function readAsText(file) { return new Promise((resolve, reject) => { const r = new FileReader(); r.onerror = () => reject(r.error); r.onload = () => resolve(String(r.result || "")); r.readAsText(file); }); }
+function firstWordsTitle(text) {
+  const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "";
+  const head = words.slice(0, 6).join(" ");
+  return words.length > 6 ? head + "…" : head;
+}
+function normalizeStem(name) { return String(name || "").toLowerCase().replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, ""); }
+function parseCSVLine(line) {
+  const cells = []; let cur = ""; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') { inQ = false; }
+      else cur += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ",") { cells.push(cur); cur = ""; }
+      else cur += ch;
+    }
+  }
+  cells.push(cur);
+  return cells;
+}
+function parseScriptsCSV(text) {
+  const lines = String(text || "").split(/\r?\n/).filter((l) => l.trim().length);
+  if (!lines.length) return [];
+  const first = parseCSVLine(lines[0]).map((c) => c.trim().toLowerCase());
+  const headerKeys = ["script", "text", "title", "id"];
+  const hasHeader = first.some((c) => headerKeys.includes(c));
+  let scriptIdx = -1, titleIdx = -1, idIdx = -1;
+  if (hasHeader) {
+    first.forEach((c, i) => {
+      if (scriptIdx === -1 && (c === "script" || c === "text")) scriptIdx = i;
+      if (titleIdx === -1 && c === "title") titleIdx = i;
+      if (idIdx === -1 && c === "id") idIdx = i;
+    });
+    if (scriptIdx === -1) scriptIdx = 0;
+  }
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const out = [];
+  for (const line of dataLines) {
+    const cells = parseCSVLine(line);
+    let textCell = "", titleCell = "";
+    if (hasHeader) {
+      textCell = (cells[scriptIdx] || "").trim();
+      titleCell = ((titleIdx > -1 ? cells[titleIdx] : "") || (idIdx > -1 ? cells[idIdx] : "") || "").trim();
+    } else {
+      let firstNonEmpty = -1;
+      for (let i = 0; i < cells.length; i++) { if (cells[i].trim()) { firstNonEmpty = i; break; } }
+      if (firstNonEmpty === -1) continue;
+      textCell = cells[firstNonEmpty].trim();
+      const second = (cells[1] || "").trim();
+      if (second && second !== textCell) titleCell = second;
+    }
+    if (textCell) out.push({ title: titleCell || firstWordsTitle(textCell), text: textCell });
+  }
+  return out;
+}
+function parseScriptsTXT(text) {
+  const raw = String(text || "");
+  const blocks = raw.split(/\r?\n\s*\r?\n/).map((s) => s.trim()).filter((s) => s.length);
+  const items = blocks.length > 1 ? blocks : raw.split(/\r?\n/).map((s) => s.trim()).filter((s) => s.length);
+  return items.map((t) => ({ title: firstWordsTitle(t), text: t }));
+}
+const SIM_DOCX_SCRIPTS = [
+  { title: "Working families promise", text: "We're tired of hearing promises that never make it to your kitchen table. This time, working families come first." },
+  { title: "Schools we deserve", text: "Every kid in this district deserves textbooks that aren't falling apart and teachers who aren't paid out of pocket." },
+  { title: "Town hall doors open", text: "Doors open Saturday at 10 — bring your questions, bring your neighbors, and we'll bring the receipts." },
+  { title: "Vote-by-mail reminder", text: "Your ballot's already at home. Don't let it get buried under last week's mail — mail it back by Friday." },
+  { title: "Endorsement spot", text: "After thirty years in classrooms, our state's teachers union is endorsing a candidate who actually shows up." },
+];
+function simulateDOCX(filename) {
+  const stem = String(filename || "").replace(/\.docx$/i, "");
+  const n = 3 + (stem.length % 3);
+  return SIM_DOCX_SCRIPTS.slice(0, n);
+}
+
+function DropZone({ accept, multiple, onFiles, label, hint }) {
+  const theme = useHostTheme();
+  const [hover, setHover] = useState(false);
+  const inputRef = useRef(null);
+  const handle = (fileList) => { const arr = Array.from(fileList || []); if (arr.length) onFiles(arr); };
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); if (!hover) setHover(true); }}
+      onDragLeave={() => setHover(false)}
+      onDrop={(e) => { e.preventDefault(); setHover(false); handle(e.dataTransfer.files); }}
+      onClick={() => inputRef.current && inputRef.current.click()}
+      style={{ border: "1px dashed " + (hover ? theme.accent.primary : theme.stroke.primary), borderRadius: 11, padding: "18px 14px", background: hover ? theme.fill.tertiary : theme.fill.quaternary, cursor: "pointer", textAlign: "center", transition: "background 120ms ease, border-color 120ms ease" }}
+    >
+      <input ref={inputRef} type="file" accept={accept} multiple={!!multiple} onChange={(e) => { handle(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+      <Stack gap={4} style={{ alignItems: "center" }}>
+        <Text size="small" weight="semibold">{label}</Text>
+        {hint ? <Text size="small" tone="tertiary">{hint}</Text> : null}
+      </Stack>
+    </div>
+  );
+}
+
 function BulkVoiceovers() {
   const theme = useHostTheme();
   const [rows, setRows] = useCanvasState("bulk.rows", []);
@@ -1463,6 +1565,7 @@ function BulkVoiceovers() {
   const [custom, setCustom] = useCanvasState("bulk.custom", "");
   const [note, setNote] = useCanvasState("bulk.note", "");
   const [created, setCreated] = useCanvasState("bulk.created", null);
+  const [uploadStatus, setUploadStatus] = useCanvasState("bulk.uploadStatus", null);
 
   const atCap = rows.length >= BULK_MAX;
   const missing = rows.filter((r) => !r.voice).length;
@@ -1506,6 +1609,76 @@ function BulkVoiceovers() {
   };
   const uploadVoice = (id, file) => { const f = (file || "").trim(); if (!f) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "uploaded", value: f }, editing: null } : r))); };
   const clearVoice = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: null } : r)));
+
+  const handleScriptsFile = async (file) => {
+    if (!file) return;
+    const ext = (file.name.toLowerCase().match(/\.(csv|txt|docx)$/) || [])[1];
+    if (!ext) { setUploadStatus({ tone: "warning", text: "Unsupported file type — use .csv, .txt, or .docx." }); return; }
+    let scripts = []; let isSim = false;
+    try {
+      if (ext === "csv") scripts = parseScriptsCSV(await readAsText(file));
+      else if (ext === "txt") scripts = parseScriptsTXT(await readAsText(file));
+      else { try { await readAsText(file); } catch (_) {} scripts = simulateDOCX(file.name); isSim = true; }
+    } catch (err) {
+      setUploadStatus({ tone: "warning", text: "Couldn't read " + file.name + " — " + ((err && err.message) || "unknown error") + "." });
+      return;
+    }
+    if (!scripts.length) { setUploadStatus({ tone: "warning", text: "Couldn't find any scripts in " + file.name + "." }); return; }
+    const before = rows.length;
+    const room = Math.max(0, BULK_MAX - before);
+    const accepted = scripts.slice(0, room);
+    const skipped = scripts.length - accepted.length;
+    const rowsToAdd = accepted.map((s) => ({ id: makeUid(), expanded: false, editing: null, source: "upload", title: s.title || firstWordsTitle(s.text), text: s.text, voice: null, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } }));
+    setRows((p) => [...p, ...rowsToAdd]);
+    let msg = "Added " + accepted.length + " script" + (accepted.length === 1 ? "" : "s") + " from " + file.name;
+    if (accepted.length > 0) msg += " — each row still needs a voiceover";
+    if (skipped > 0) msg += " · skipped " + skipped + " (" + BULK_MAX + "-video cap reached)";
+    msg += ".";
+    if (isSim) msg += " Preview parse — real .docx import will run server-side in production.";
+    setUploadStatus({ tone: skipped > 0 ? "warning" : "info", text: msg });
+    setNote("");
+  };
+
+  const handleAudioFiles = (files) => {
+    if (!files || !files.length) return;
+    let attached = 0, newAdded = 0, skipped = 0;
+    setRows((prev) => {
+      const next = [...prev];
+      const usedIdxs = new Set();
+      for (const f of files) {
+        const stem = normalizeStem(f.name);
+        let idx = -1;
+        if (stem) {
+          for (let i = 0; i < next.length; i++) {
+            if (usedIdxs.has(i)) continue;
+            if (next[i].voice) continue;
+            if (normalizeStem(next[i].title || "") === stem) { idx = i; break; }
+          }
+        }
+        if (idx > -1) {
+          next[idx] = { ...next[idx], voice: { origin: "uploaded", value: f.name } };
+          usedIdxs.add(idx);
+          attached++;
+        } else {
+          if (next.length >= BULK_MAX) { skipped++; continue; }
+          const stripped = f.name.replace(/\.[^.]+$/, "");
+          next.push({ id: makeUid(), expanded: false, editing: null, source: "upload", title: stripped, text: "", voice: { origin: "uploaded", value: f.name }, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } });
+          newAdded++;
+        }
+      }
+      return next;
+    });
+    const total = attached + newAdded;
+    let msg = "Added " + total + " voiceover" + (total === 1 ? "" : "s");
+    const parts = [];
+    if (attached) parts.push(attached + " paired by filename");
+    if (newAdded) parts.push(newAdded + " added as new row" + (newAdded === 1 ? "" : "s"));
+    if (parts.length) msg += " (" + parts.join(", ") + ")";
+    if (skipped) msg += " · skipped " + skipped + " (" + BULK_MAX + "-video cap reached)";
+    msg += ".";
+    setUploadStatus({ tone: skipped ? "warning" : "info", text: msg });
+    setNote("");
+  };
 
   const bulkGenerate = () => {
     if (rows.length === 0) return;
@@ -1596,8 +1769,10 @@ function BulkVoiceovers() {
                 <Pill active={picker === "video"} onClick={() => setPicker(picker === "video" ? "" : "video")}>Winning videos</Pill>
                 <Pill active={picker === "library"} onClick={() => setPicker(picker === "library" ? "" : "library")}>Library script</Pill>
                 <Pill active={picker === "custom"} onClick={() => setPicker(picker === "custom" ? "" : "custom")}>Custom</Pill>
+                <Pill active={picker === "upScript"} onClick={() => setPicker(picker === "upScript" ? "" : "upScript")}>Upload scripts</Pill>
+                <Pill active={picker === "upVoice"} onClick={() => setPicker(picker === "upVoice" ? "" : "upVoice")}>Upload voiceovers</Pill>
               </Row>
-              {atCap ? <Callout tone="warning">You've reached the {BULK_MAX}-video maximum. Remove a video to add another.</Callout> : null}
+              {atCap ? <Callout tone="warning">You've reached the {BULK_MAX}-video maximum. Remove a video to add another. (Audio uploads can still pair voiceovers into existing rows.)</Callout> : null}
 
               {picker === "video" && !atCap ? (
                 <Stack gap={8}>
@@ -1646,6 +1821,33 @@ function BulkVoiceovers() {
                   <TextArea value={custom} onChange={setCustom} rows={3} placeholder="Write or paste a script — you'll build the rest of the recipe on the card…" />
                   <Row gap={8}><Button variant="primary" disabled={!custom.trim()} onClick={addCustom}>Add video</Button></Row>
                 </Stack>
+              ) : null}
+
+              {picker === "upScript" ? (
+                <Stack gap={8}>
+                  <Text size="small" tone="tertiary">Drop a <span style={{ fontWeight: 600 }}>.csv</span>, <span style={{ fontWeight: 600 }}>.txt</span>, or <span style={{ fontWeight: 600 }}>.docx</span> file. Each parsed script becomes a row that still needs a voiceover (unless a matching audio file is uploaded next).</Text>
+                  {atCap ? <Text size="small" tone="tertiary">Bulk cap reached — remove a video first to import more scripts.</Text> : (
+                    <DropZone accept=".csv,.txt,.docx" onFiles={(arr) => handleScriptsFile(arr[0])} label="Drop a scripts file or click to browse" hint=".csv (script/text + optional title/id columns) · .txt (paragraphs or one-per-line) · .docx (preview parse)" />
+                  )}
+                  <Text size="small" tone="tertiary">CSV with a header uses the <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>script</span>/<span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>text</span> column for the script and <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>title</span>/<span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>id</span> for the row title. Plain CSV uses the first cell as script, second cell as title. .docx import is simulated in the prototype — server-side in production.</Text>
+                </Stack>
+              ) : null}
+
+              {picker === "upVoice" ? (
+                <Stack gap={8}>
+                  <Text size="small" tone="tertiary">Drop one or more audio files. Filenames that match an existing row's title (case-insensitive, ignoring punctuation/spaces/extension) attach the voiceover to that row; unmatched files become new script-blank rows tagged <span style={{ fontWeight: 600 }}>Uploaded</span>.</Text>
+                  <DropZone accept="audio/*,.mp3,.wav,.m4a,.ogg" multiple={true} onFiles={handleAudioFiles} label="Drop audio files or click to browse (multi-select)" hint=".mp3 · .wav · .m4a · .ogg — match by filename to attach to existing rows" />
+                  {atCap ? <Text size="small" tone="tertiary">Bulk cap reached — only audio that pairs with an existing row will attach; unmatched files will be skipped.</Text> : null}
+                </Stack>
+              ) : null}
+
+              {uploadStatus ? (
+                <Callout tone={uploadStatus.tone}>
+                  <Row align="center" gap={8}>
+                    <Text size="small" style={{ flex: 1 }}>{uploadStatus.text}</Text>
+                    <IconButton title="Dismiss" size="sm" onClick={() => setUploadStatus(null)}>✕</IconButton>
+                  </Row>
+                </Callout>
               ) : null}
             </Stack>
           </CardBody>

@@ -22,13 +22,20 @@ for **Script, Voiceover, Soundtrack, Creative Direction, Skill/Template, and Vis
 each with an inline **Swap / Pick / Add skill** picker that lets you choose from a winning
 video, the roster/library, write/upload your own, or layer multiple skills. **Pulling a
 winning video prefills the entire recipe** (tagged **"From {video}"**) and every field stays
-editable. **Skills are now multi-select per video** — winning-video skills come over as
-chips, you can keep adding more from the full template list, remove any with **✕**, and the
-final summary lists every attached skill. Any card without a voice is flagged **"Needs
-voiceover"** and is resolved with **Roster / Generate / Upload / From a winning video**, with
-origin tags. The primary CTA — **"Generate N videos"** — validates every card has a voiceover
-(expanding and pointing you to unresolved ones) and confirms the full per-video recipe.
-See [Bulk Voiceovers](#3-bulk-voiceovers) below for details.
+editable. **Skills are multi-select per video** — winning-video skills come over as chips,
+you can keep adding more from the full template list, remove any with **✕**, and the final
+summary lists every attached skill. **Bulk uploads** speed up batch building: drop a
+**`.csv`, `.txt`, or `.docx`** file to create a row per parsed script (CSV honors a
+`script/text` + `title/id` header, TXT splits on blank-line paragraphs or per-line,
+**`.docx` parsing is simulated** in the prototype with a "Preview parse — real .docx import
+will run server-side in production" note), or **drop multiple audio files** (`.mp3 / .wav /
+.m4a / .ogg`) and they **pair into existing rows by filename** (case-insensitive, ignoring
+punctuation/spaces/extension) — unmatched audio becomes new script-blank rows tagged
+**Uploaded**. Any card without a voice is flagged **"Needs voiceover"** and is resolved with
+**Roster / Generate / Upload / From a winning video**, with origin tags. The primary CTA —
+**"Generate N videos"** — validates every card has a voiceover (expanding and pointing you
+to unresolved ones) and confirms the full per-video recipe. See
+[Bulk Voiceovers](#3-bulk-voiceovers) below for details.
 
 ## What you can do in it
 
@@ -68,11 +75,29 @@ row.
 - **Build up to 50 videos.** A running **N / 50** counter is shown, and "add" is disabled with a
   gentle note once you hit the cap. **Expand all / Collapse all** keeps the list scannable, and
   the header shows how many videos still need a voiceover.
-- **Three ways to add a video:** pull a **winning video** to **prefill the entire recipe**
+- **Five ways to add videos:** pull a **winning video** to **prefill the entire recipe**
   (script + voiceover + soundtrack + creative + skills + visual; one at a time or **add all
   winning videos**), tagged **"From {video title}"**; add a **library script** (script only,
-  other fields blank/defaults, voiceover shows *Needs voiceover*); or add a **custom** blank
-  card. Remove any video at any time.
+  other fields blank/defaults, voiceover shows *Needs voiceover*); add a **custom** blank
+  card; **bulk-upload scripts** from a `.csv`, `.txt`, or `.docx` file (one row per parsed
+  script); or **bulk-upload voiceovers** as multiple audio files. Remove any video at any
+  time.
+- **Bulk upload — scripts:** drag-and-drop or browse a `.csv`, `.txt`, or `.docx` file. CSV
+  with a header row uses the `script`/`text` column for the script body and `title`/`id`
+  for the row title; CSV without a header uses the first cell as script and the second cell
+  as title. TXT splits into scripts on blank-line paragraphs (or one-per-line if there are
+  no blank lines). **`.docx` is simulated** for the prototype — the file is read so you see
+  the filename, then a small in-band note ("Preview parse — real .docx import will run
+  server-side in production") confirms the simulation, and N rows are produced so the rest
+  of the UX flow is identical. A status callout confirms how many rows were added (and how
+  many were skipped if the 50-video cap is hit).
+- **Bulk upload — voiceovers:** drag-and-drop or browse multiple `.mp3` / `.wav` / `.m4a` /
+  `.ogg` files. **Filenames are paired into existing rows** (case-insensitive, ignoring
+  punctuation/spaces/extension): if `working-families-promise.mp3` matches a row titled
+  *Working families promise*, the voice attaches there with origin **Uploaded**; unmatched
+  audio becomes a new script-blank row tagged **Uploaded** that you can fill the script in
+  later. The status callout summarizes "*N paired by filename, M added as new rows*", and
+  audio that pairs into existing rows still works at cap.
 - **Expandable Library-style cards:** collapsed shows index, title, voiceover status, on/off
   indicators for voiceover/soundtrack/creative/visual, and a **skills: N** count chip. Expand
   to edit the **whole recipe** in the familiar Library card layout — six ingredient rows, each
