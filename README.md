@@ -21,7 +21,9 @@ script but **no voice assigned** is flagged **"Needs voiceover"** and prompts yo
 two ways: **Generate** (mock TTS — pick a voice from the roster, watch it go *generating →
 generated*) or **Upload** (confirm a filename / pick a mock file). Resolved rows show the voice
 with an origin tag (**Roster / Generated / Uploaded**), and the bulk action won't run until
-every row has a voice. See [Bulk Voiceovers](#3-bulk-voiceovers) below for details.
+every row has a voice. You can also **pull a winning video's script + its voiceover together**
+into a row (tagged **"From {video}"**), so it arrives already resolved — and you can still
+change that voice. See [Bulk Voiceovers](#3-bulk-voiceovers) below for details.
 
 ## What you can do in it
 
@@ -59,9 +61,14 @@ generating the final voiceovers in bulk.
 
 - **Build a list of up to 50 rows.** A running **N / 50** counter is shown, and "add" is
   disabled with a gentle note once you hit the cap.
-- **Populate rows fast:** add individual scripts **from the library**, write a **custom
-  script**, or **bulk-add all library scripts** at once. Remove any row, and assign or
-  reassign its voiceover artist from the **6-artist roster** at any time.
+- **Populate rows fast:** pull a **winning video** to carry over its **script *and* its
+  voiceover** in one step (one at a time, or **add all winning videos**); add individual
+  scripts **from the library** (script only); write a **custom script**; or **bulk-add all
+  library scripts** at once. Remove any row, and assign or reassign its voiceover artist from
+  the **6-artist roster** at any time.
+- **Winning-video rows arrive resolved:** they're tagged **"From {video title}"** with the
+  video's original voiceover already attached — no "Needs voiceover" prompt — but you can still
+  **Change** the voice (reassign from roster / Generate / Upload) like any other row.
 - **Missing-voiceover prompt:** any row without a voice is clearly flagged **"Needs
   voiceover"** and offers two actions — **Generate** (simulated TTS using a roster voice) or
   **Upload** (mock file). Once resolved, the row shows the voice and its **Roster / Generated /

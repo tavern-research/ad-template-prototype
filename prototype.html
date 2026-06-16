@@ -1432,8 +1432,10 @@ const VO_OPTIONS = VO_ROSTER.map((o) => ({ value: o.id, label: o.name + " — " 
 const BULK_MAX = 50;
 function voById(id) { return VO_ROSTER.find((o) => o.id === id); }
 function rosterVoiceValue(o) { return o.name + " — " + o.provider + " · " + o.tone; }
-const BULK_ORIGIN_TONE = { roster: "neutral", generated: "success", uploaded: "info" };
-const BULK_ORIGIN_LABEL = { roster: "Roster", generated: "Generated", uploaded: "Uploaded" };
+const BULK_ORIGIN_TONE = { roster: "neutral", video: "info", generated: "success", uploaded: "info" };
+const BULK_ORIGIN_LABEL = { roster: "Roster", video: "Winning video", generated: "Generated", uploaded: "Uploaded" };
+function bulkOriginLabel(voice) { return voice.origin === "video" && voice.from ? "From " + voice.from : BULK_ORIGIN_LABEL[voice.origin]; }
+function videoRowItem(v) { return { title: v.title, text: v.script.text, voice: { origin: "video", value: v.voiceover.artist + " — " + v.voiceover.provider, from: v.title } }; }
 
 function NumberBadge({ n }) {
   const theme = useHostTheme();
@@ -1456,9 +1458,11 @@ function BulkVoiceovers() {
   const atCap = rows.length >= BULK_MAX;
   const missing = rows.filter((r) => !r.voice).length;
 
-  const addRowsFrom = (items) => setRows((p) => { const room = BULK_MAX - p.length; if (room <= 0) return p; const adds = items.slice(0, room).map((s) => ({ id: makeUid(), title: s.title, text: s.text, voice: null })); return [...p, ...adds]; });
+  const addRowsFrom = (items) => setRows((p) => { const room = BULK_MAX - p.length; if (room <= 0) return p; const adds = items.slice(0, room).map((s) => ({ id: makeUid(), title: s.title, text: s.text, voice: s.voice || null })); return [...p, ...adds]; });
   const addLibrary = (s) => { if (!atCap) { addRowsFrom([s]); setNote(""); } };
   const addAllLibrary = () => { addRowsFrom(LIBRARY_SCRIPTS); setNote(""); };
+  const addVideo = (v) => { if (!atCap) { addRowsFrom([videoRowItem(v)]); setNote(""); } };
+  const addAllVideos = () => { addRowsFrom(VIDEOS.map(videoRowItem)); setNote(""); };
   const addCustom = () => { const t = custom.trim(); if (!t || atCap) return; addRowsFrom([{ title: "Custom script", text: t }]); setCustom(""); setNote(""); };
   const removeRow = (id) => { setRows((p) => p.filter((r) => r.id !== id)); setEditor((e) => (e && e.rowId === id ? null : e)); };
   const clearAll = () => { setRows([]); setEditor(null); setNote(""); };
@@ -1504,7 +1508,7 @@ function BulkVoiceovers() {
                       <Row gap={6} align="center" style={{ marginTop: 3 }}>
                         <span style={{ color: theme.text.tertiary, display: "flex" }}><ElIcon type="voiceover" size={13} /></span>
                         <Text size="small" truncate style={{ minWidth: 0 }}>{r.voice.value}</Text>
-                        <Pill size="sm" active tone={BULK_ORIGIN_TONE[r.voice.origin]}>{BULK_ORIGIN_LABEL[r.voice.origin]}</Pill>
+                        <Pill size="sm" active tone={BULK_ORIGIN_TONE[r.voice.origin]}>{bulkOriginLabel(r.voice)}</Pill>
                       </Row>
                     </div>
                   </Row>
@@ -1529,7 +1533,7 @@ function BulkVoiceovers() {
             <Spacer />
             <Pill active={rows.length > 0} tone={counterTone}>{rows.length} / {BULK_MAX}</Pill>
           </Row>
-          <Text tone="secondary">Pair up to {BULK_MAX} scripts with voiceover artists and generate the final voiceovers in one pass. Any row missing a voice can be generated with TTS or uploaded.</Text>
+          <Text tone="secondary">Pair up to {BULK_MAX} scripts with voiceover artists and generate the final voiceovers in one pass. Pull a winning video to bring its script and voiceover together, or add a script and assign a voice — generate with TTS or upload.</Text>
         </Stack>
 
         <Card>
@@ -1537,17 +1541,54 @@ function BulkVoiceovers() {
           <CardBody>
             <Stack gap={12}>
               <Row gap={8} wrap style={{ rowGap: 8 }}>
-                <Pill active={picker === "library"} onClick={() => setPicker(picker === "library" ? "" : "library")}>From library</Pill>
+                <Pill active={picker === "video"} onClick={() => setPicker(picker === "video" ? "" : "video")}>Winning videos</Pill>
+                <Pill active={picker === "library"} onClick={() => setPicker(picker === "library" ? "" : "library")}>Library script</Pill>
                 <Pill active={picker === "custom"} onClick={() => setPicker(picker === "custom" ? "" : "custom")}>Custom script</Pill>
-                <Spacer />
-                <Button variant="secondary" disabled={atCap} onClick={addAllLibrary}>Add all library scripts</Button>
               </Row>
               {atCap ? <Callout tone="warning">You've reached the {BULK_MAX}-row maximum. Remove a row to add another.</Callout> : null}
-              {picker === "library" && !atCap ? (
-                <Stack gap={6}>
-                  {LIBRARY_SCRIPTS.map((s) => <OptionRow key={s.id} title={s.title} subtitle={s.text} actionLabel="Add" onClick={() => addLibrary(s)} />)}
+
+              {picker === "video" && !atCap ? (
+                <Stack gap={8}>
+                  <Row align="center" gap={8} wrap style={{ rowGap: 8 }}>
+                    <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>Pull a winning video to bring its script <span style={{ fontWeight: 600 }}>and its voiceover</span> together — the row arrives ready, and you can still change the voice.</Text>
+                    <Button variant="secondary" disabled={atCap} onClick={addAllVideos}>Add all winning videos</Button>
+                  </Row>
+                  <Stack gap={6}>
+                    {VIDEOS.map((v) => (
+                      <div key={v.id} style={{ border: "1px solid " + theme.stroke.tertiary, borderRadius: 10, padding: 10 }}>
+                        <Row gap={10} align="center" wrap style={{ rowGap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 200 }}>
+                            <Row gap={6} align="center">
+                              <Text size="small" weight="semibold" truncate>{v.title}</Text>
+                              <Pill size="sm" active tone={v.badgeTone}>{v.badge}</Pill>
+                            </Row>
+                            <Text size="small" tone="tertiary" truncate>{v.category} · CTR {v.ctr} · {v.views} views</Text>
+                            <Text size="small" truncate style={{ marginTop: 2 }}>“{v.script.text}”</Text>
+                            <Row gap={6} align="center" style={{ marginTop: 4 }}>
+                              <span style={{ color: theme.text.tertiary, display: "flex" }}><ElIcon type="voiceover" size={12} /></span>
+                              <Text size="small" tone="secondary" truncate>{v.voiceover.artist} — {v.voiceover.provider}</Text>
+                            </Row>
+                          </div>
+                          <Button variant="secondary" disabled={atCap} onClick={() => addVideo(v)}>Add script + voice</Button>
+                        </Row>
+                      </div>
+                    ))}
+                  </Stack>
                 </Stack>
               ) : null}
+
+              {picker === "library" && !atCap ? (
+                <Stack gap={8}>
+                  <Row align="center" gap={8} wrap style={{ rowGap: 8 }}>
+                    <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>Add just the script — the row will need a voiceover, which you can generate or upload.</Text>
+                    <Button variant="secondary" disabled={atCap} onClick={addAllLibrary}>Add all library scripts</Button>
+                  </Row>
+                  <Stack gap={6}>
+                    {LIBRARY_SCRIPTS.map((s) => <OptionRow key={s.id} title={s.title} subtitle={s.text} actionLabel="Add script only" onClick={() => addLibrary(s)} />)}
+                  </Stack>
+                </Stack>
+              ) : null}
+
               {picker === "custom" && !atCap ? (
                 <Stack gap={8}>
                   <TextArea value={custom} onChange={setCustom} rows={3} placeholder="Write or paste a script to voice…" />
@@ -1568,7 +1609,7 @@ function BulkVoiceovers() {
         ) : null}
 
         {rows.length === 0 ? (
-          <Callout tone="neutral" title="No scripts yet">Add scripts from the library or write your own above. Each row pairs a script with a voiceover artist; any row without one can be generated or uploaded.</Callout>
+          <Callout tone="neutral" title="No rows yet">Add rows above — pull a winning video to carry over its script and voiceover, add a library script (you'll assign a voice), or write your own. Any row missing a voice can be generated or uploaded.</Callout>
         ) : (
           <Stack gap={10}>
             <Row align="center">
@@ -1593,7 +1634,7 @@ function BulkVoiceovers() {
                       <Row gap={8} align="center" justify="flex-end" style={{ flexShrink: 0 }}>
                         <Stack gap={2} style={{ alignItems: "flex-end", minWidth: 0 }}>
                           <Text size="small" truncate style={{ textAlign: "right", maxWidth: 220 }}>{v.value}</Text>
-                          {v.status === "generating" ? <Pill size="sm" tone="neutral">Generating…</Pill> : <Pill size="sm" active tone={BULK_ORIGIN_TONE[v.origin]}>{BULK_ORIGIN_LABEL[v.origin]}</Pill>}
+                          {v.status === "generating" ? <Pill size="sm" tone="neutral">Generating…</Pill> : <Pill size="sm" active tone={BULK_ORIGIN_TONE[v.origin]}>{bulkOriginLabel(v)}</Pill>}
                         </Stack>
                         <Button variant="ghost" onClick={() => openEditor(r.id, "reassign")}>Change</Button>
                       </Row>
