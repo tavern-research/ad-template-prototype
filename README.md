@@ -30,9 +30,14 @@ layer onto a video. Each skill renders as a Library-style card with a flat poste
 the kebab-id name (e.g. `front-porch-positive`), a one-sentence description, an inferred
 tone (Positive / Contrast / Persuasion), and chips listing which winning videos use it. A
 **Use in new batch** button on each card jumps to **Bulk Studio** (Per-video mode) and
-creates a fresh row pre-attached with that skill in its multi-skill chip set. The header
-has a stat strip (skills in library, used by winning videos, winning videos covered) and
-filter pills (All / Used / Unused / Positive / Contrast / Persuasion).
+creates a fresh row pre-attached with that skill in its multi-skill chip set. **Multi-select
+is supported**: tap any card (or its checkbox) to add it to a selection, and a sticky
+header action bar appears with a running count, a **"Use N skills in new batch"** primary
+CTA that hands the whole stack off to a single new Bulk Studio Per-video card, and a
+**Clear selection** button. Selections persist across filter changes (hidden selections
+stay in state and are noted in the action bar). The header has a stat strip (skills in
+library, used by winning videos, winning videos covered) and filter pills (All / Used /
+Unused / Positive / Contrast / Persuasion).
 
 In Bulk Studio, **each expanded video card now matches the Winning Videos library card
 visually**: video-sourced rows render with the flat-color **poster + play glyph + duration
@@ -190,15 +195,32 @@ or fine-tune each video individually.
 
 ### 3. Skills
 *(new in v2)* A browser for the full template library — every skill the bulk flow can layer
-onto a video. Each skill renders as a Library-style card:
+onto a video. Each skill renders as a Library-style card and the tab supports
+**multi-select** so you can layer several skills onto a single new video at once:
 
 - **Flat-color poster preview** seeded from the skill's id (consistent visual signature).
 - **Kebab-id name** (e.g. `front-porch-positive`) plus a one-sentence description, an
   inferred **tone tag** (Positive / Contrast / Persuasion), and a "Used in N winning videos"
   count with chip-listed video titles colored by their performance badge.
-- **Use in new batch** button — jumps to **Bulk Studio** (Per-video mode is the default for
-  freshly-added skill rows) and creates a fresh row pre-attached with that skill in its
-  multi-skill chip set, expanded and ready to fill in script and voiceover.
+- **Multi-select selection model** — every card has a checkmark ring in the top-left of
+  its poster; tap the card or the ring to toggle selection. Selected cards get an accent
+  border and a subtle accent-tinted background. Selection state is persisted (`skills.selected`)
+  and survives filter changes — flipping between **All / Used / Positive** etc. never drops a
+  hidden selection.
+- **Sticky action bar** — appears at the top of the Skills tab body the moment you select
+  one or more skills. It shows a running **"N skills selected"** count, a brief explainer
+  ("All N skills will be layered onto a single new Per-video Bulk Studio card"), a
+  **Clear selection** ghost button, and a primary **"Use N skills in new batch"** CTA. When
+  the selection is empty, the bar disappears.
+- **Use in new batch** (per-card) — when no other skills are selected, this primary button
+  hands the single skill off to **Bulk Studio** as before. When a selection already exists,
+  the per-card button shifts to a secondary **Add to selection** affordance (or **✓ In
+  selection** when this card is already selected) so the bottom button can never silently
+  drop a multi-select.
+- **Hand-off** — the **"Use N skills in new batch"** CTA jumps to **Bulk Studio**, force-
+  switches Mode to **Per-video customization**, and creates a fresh expanded card with all
+  selected skills loaded into the multi-skill chip stack. The selection clears once the
+  hand-off is complete (the skills now live on the new Bulk Studio card).
 - The header shows a stat strip (skills in library, used by winning videos, winning videos
   covered) and filter pills: **All / Used / Unused / Positive / Contrast / Persuasion**.
 
