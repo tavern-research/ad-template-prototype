@@ -1429,13 +1429,24 @@ function NewBatchFlow() {
 
 const LIBRARY_SCRIPTS = VIDEOS.map((v) => ({ id: v.script.id, title: v.title, text: v.script.text }));
 const VO_OPTIONS = VO_ROSTER.map((o) => ({ value: o.id, label: o.name + " — " + o.provider + " · " + o.tone }));
+const TRACK_OPTIONS = [{ value: "none", label: "Choose from track library…" }].concat(TRACK_LIBRARY.map((t) => ({ value: t.id, label: t.name + " · " + t.mood })));
 const BULK_MAX = 50;
 function voById(id) { return VO_ROSTER.find((o) => o.id === id); }
 function rosterVoiceValue(o) { return o.name + " — " + o.provider + " · " + o.tone; }
 const BULK_ORIGIN_TONE = { roster: "neutral", video: "info", generated: "success", uploaded: "info" };
 const BULK_ORIGIN_LABEL = { roster: "Roster", video: "Winning video", generated: "Generated", uploaded: "Uploaded" };
 function bulkOriginLabel(voice) { return voice.origin === "video" && voice.from ? "From " + voice.from : BULK_ORIGIN_LABEL[voice.origin]; }
-function videoRowItem(v) { return { title: v.title, text: v.script.text, voice: { origin: "video", value: v.voiceover.artist + " — " + v.voiceover.provider, from: v.title } }; }
+function videoFullRow(v) {
+  return {
+    source: "video", title: v.title, text: v.script.text,
+    voice: { origin: "video", value: v.voiceover.artist + " — " + v.voiceover.provider, from: v.title },
+    soundtrack: { origin: "library", value: v.soundtrack.name + " · " + v.soundtrack.mood },
+    creative: v.creative, skills: [v.skill.name],
+    visual: { format: v.visual.format, duration: v.visual.duration, grade: v.visual.grade, captions: v.visual.captions },
+  };
+}
+function libraryFullRow(s) { return { source: "library", title: s.title, text: s.text, voice: null, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } }; }
+function customFullRow(text) { return { source: "custom", title: "Custom video", text: text, voice: null, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } }; }
 
 function NumberBadge({ n }) {
   const theme = useHostTheme();
@@ -1458,14 +1469,27 @@ function BulkVoiceovers() {
   const atCap = rows.length >= BULK_MAX;
   const missing = rows.filter((r) => !r.voice).length;
 
-  const addRowsFrom = (items) => setRows((p) => { const room = BULK_MAX - p.length; if (room <= 0) return p; const adds = items.slice(0, room).map((s) => ({ id: makeUid(), title: s.title, text: s.text, voice: s.voice || null })); return [...p, ...adds]; });
-  const addLibrary = (s) => { if (!atCap) { addRowsFrom([s]); setNote(""); } };
-  const addAllLibrary = () => { addRowsFrom(LIBRARY_SCRIPTS); setNote(""); };
-  const addVideo = (v) => { if (!atCap) { addRowsFrom([videoRowItem(v)]); setNote(""); } };
-  const addAllVideos = () => { addRowsFrom(VIDEOS.map(videoRowItem)); setNote(""); };
-  const addCustom = () => { const t = custom.trim(); if (!t || atCap) return; addRowsFrom([{ title: "Custom script", text: t }]); setCustom(""); setNote(""); };
+  const addRowsFrom = (items) => setRows((p) => {
+    const room = BULK_MAX - p.length; if (room <= 0) return p;
+    const adds = items.slice(0, room).map((s) => ({ id: makeUid(), expanded: false, source: s.source || "custom", title: s.title || "", text: s.text || "", voice: s.voice || null, soundtrack: s.soundtrack || null, creative: s.creative || "", skills: s.skills || [], visual: s.visual || { ...DEFAULT_VISUAL_DRAFT } }));
+    return [...p, ...adds];
+  });
+  const addLibrary = (s) => { if (!atCap) { addRowsFrom([libraryFullRow(s)]); setNote(""); } };
+  const addAllLibrary = () => { addRowsFrom(LIBRARY_SCRIPTS.map(libraryFullRow)); setNote(""); };
+  const addVideo = (v) => { if (!atCap) { addRowsFrom([videoFullRow(v)]); setNote(""); } };
+  const addAllVideos = () => { addRowsFrom(VIDEOS.map(videoFullRow)); setNote(""); };
+  const addCustom = () => { const t = custom.trim(); if (!t || atCap) return; addRowsFrom([customFullRow(t)]); setCustom(""); setNote(""); };
   const removeRow = (id) => { setRows((p) => p.filter((r) => r.id !== id)); setEditor((e) => (e && e.rowId === id ? null : e)); };
   const clearAll = () => { setRows([]); setEditor(null); setNote(""); };
+
+  const updateRow = (id, patch) => setRows((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const toggleExpand = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, expanded: !r.expanded } : r)));
+  const setAllExpanded = (val) => setRows((p) => p.map((r) => ({ ...r, expanded: val })));
+  const toggleSkill = (id, name) => setRows((p) => p.map((r) => (r.id === id ? { ...r, skills: r.skills.includes(name) ? r.skills.filter((x) => x !== name) : [...r.skills, name] } : r)));
+  const setVisual = (id, key, val) => setRows((p) => p.map((r) => (r.id === id ? { ...r, visual: { ...(r.visual || DEFAULT_VISUAL_DRAFT), [key]: val } } : r)));
+  const setSoundtrackLibrary = (id, trackId) => { if (trackId === "none") return; const t = TRACK_LIBRARY.find((x) => x.id === trackId); if (t) updateRow(id, { soundtrack: { origin: "library", value: t.name + " · " + t.mood } }); };
+  const setSoundtrackUpload = (id, f) => updateRow(id, { soundtrack: { origin: "uploaded", value: f } });
+  const clearSoundtrack = (id) => updateRow(id, { soundtrack: null });
 
   const openEditor = (rowId, mode) => { setEditor({ rowId, mode }); if (mode !== "upload") setVoDraft(VO_ROSTER[0].id); if (mode === "upload") setUpDraft(""); };
   const assignRoster = (id, voId) => { const o = voById(voId); if (!o) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "roster", value: rosterVoiceValue(o) } } : r))); setEditor(null); };
@@ -1481,42 +1505,57 @@ function BulkVoiceovers() {
   const bulkGenerate = () => {
     if (rows.length === 0) return;
     const m = rows.filter((r) => !r.voice).length;
-    if (m > 0) { setNote(m + (m === 1 ? " row still needs a voiceover" : " rows still need a voiceover") + " — use Generate or Upload to resolve " + (m === 1 ? "it." : "them.")); return; }
+    if (m > 0) { setNote(m + (m === 1 ? " video still needs a voiceover" : " videos still need a voiceover") + " — open it and use Generate or Upload to resolve " + (m === 1 ? "it." : "them.")); setRows((p) => p.map((r) => (!r.voice ? { ...r, expanded: true } : r))); return; }
     setNote("");
-    setCreated({ rows: rows.map((r) => ({ title: r.title, text: r.text, voice: r.voice })) });
+    setCreated({ rows: rows.map((r) => ({ title: r.title, text: r.text, voice: r.voice, soundtrack: r.soundtrack, creative: r.creative, skills: r.skills, visual: r.visual })) });
   };
 
   if (created) {
     return (
       <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px 48px" }}>
-        <Stack gap={20} style={{ maxWidth: 720, margin: "0 auto" }}>
+        <Stack gap={20} style={{ maxWidth: 760, margin: "0 auto" }}>
           <Stack gap={10} style={{ alignItems: "center", textAlign: "center" }}>
             <div style={{ width: 48, height: 48, borderRadius: 999, background: theme.fill.secondary, display: "flex", alignItems: "center", justifyContent: "center" }}><CheckMark color={theme.accent.primary} /></div>
-            <H1>Voiceovers generated</H1>
-            <Text tone="secondary"><span style={{ fontWeight: 600 }}>{created.rows.length}</span> final voiceover{created.rows.length === 1 ? "" : "s"} ready to attach to your scripts. (Prototype — no audio rendered.)</Text>
+            <H1>Videos queued</H1>
+            <Text tone="secondary"><span style={{ fontWeight: 600 }}>{created.rows.length}</span> video{created.rows.length === 1 ? "" : "s"} queued to render with their full recipes. (Prototype — nothing rendered.)</Text>
           </Stack>
-          <Card>
-            <CardHeader trailing={<Pill size="sm" tone="success">{created.rows.length} ready</Pill>}>Final voiceovers</CardHeader>
-            <CardBody>
-              <Stack gap={10}>
-                {created.rows.map((r, i) => (
-                  <Row key={i} gap={10} align="start">
-                    <NumberBadge n={i + 1} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <Text size="small" weight="medium" truncate>{r.title}</Text>
-                      <Text size="small" tone="tertiary" truncate>{r.text}</Text>
-                      <Row gap={6} align="center" style={{ marginTop: 3 }}>
-                        <span style={{ color: theme.text.tertiary, display: "flex" }}><ElIcon type="voiceover" size={13} /></span>
-                        <Text size="small" truncate style={{ minWidth: 0 }}>{r.voice.value}</Text>
-                        <Pill size="sm" active tone={BULK_ORIGIN_TONE[r.voice.origin]}>{bulkOriginLabel(r.voice)}</Pill>
+          <Stack gap={12}>
+            {created.rows.map((r, i) => {
+              const line = (type, label, value, tag, tagTone) => (
+                <Row gap={8} align="start">
+                  <span style={{ color: theme.text.tertiary, display: "flex", marginTop: 1, flexShrink: 0 }}><ElIcon type={type} size={13} /></span>
+                  <Text size="small" tone="tertiary" style={{ width: 74, flexShrink: 0 }}>{label}</Text>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Row gap={6} align="center">
+                      <Text size="small" style={{ flex: 1, minWidth: 0 }}>{value}</Text>
+                      {tag ? <Pill size="sm" active tone={tagTone}>{tag}</Pill> : null}
+                    </Row>
+                  </div>
+                </Row>
+              );
+              return (
+                <Card key={i}>
+                  <CardBody>
+                    <Stack gap={10}>
+                      <Row gap={8} align="center">
+                        <NumberBadge n={i + 1} />
+                        <Text weight="semibold" truncate style={{ flex: 1, minWidth: 0 }}>{r.title || "Untitled video"}</Text>
                       </Row>
-                    </div>
-                  </Row>
-                ))}
-              </Stack>
-            </CardBody>
-          </Card>
-          <Row justify="center"><Button variant="secondary" onClick={() => setCreated(null)}>Back to list</Button></Row>
+                      <Stack gap={6}>
+                        {line("script", "Script", r.text || "—")}
+                        {line("voiceover", "Voiceover", r.voice ? r.voice.value : "—", r.voice ? bulkOriginLabel(r.voice) : null, r.voice ? BULK_ORIGIN_TONE[r.voice.origin] : "neutral")}
+                        {line("soundtrack", "Soundtrack", r.soundtrack ? r.soundtrack.value : "None")}
+                        {line("creative", "Creative", r.creative || "—")}
+                        {line("skill", "Skill", r.skills.length ? r.skills.join(", ") : "—")}
+                        {line("visual", "Visual", r.visual ? (r.visual.format + " · " + r.visual.duration + " · " + r.visual.grade + " · " + r.visual.captions) : "—")}
+                      </Stack>
+                    </Stack>
+                  </CardBody>
+                </Card>
+              );
+            })}
+          </Stack>
+          <Row justify="center"><Button variant="secondary" onClick={() => setCreated(null)}>Back to videos</Button></Row>
         </Stack>
       </div>
     );
@@ -1533,24 +1572,24 @@ function BulkVoiceovers() {
             <Spacer />
             <Pill active={rows.length > 0} tone={counterTone}>{rows.length} / {BULK_MAX}</Pill>
           </Row>
-          <Text tone="secondary">Pair up to {BULK_MAX} scripts with voiceover artists and generate the final voiceovers in one pass. Pull a winning video to bring its script and voiceover together, or add a script and assign a voice — generate with TTS or upload.</Text>
+          <Text tone="secondary">Build up to {BULK_MAX} videos at once. Each video is a full editable recipe — script, voiceover, soundtrack, creative direction, skill and visual style. Pull a winning video to prefill the whole recipe, or start from a script and edit every field.</Text>
         </Stack>
 
         <Card>
-          <CardHeader trailing={<Pill size="sm" tone={atCap ? "warning" : "neutral"}>{rows.length}/{BULK_MAX}</Pill>}>Add scripts</CardHeader>
+          <CardHeader trailing={<Pill size="sm" tone={atCap ? "warning" : "neutral"}>{rows.length}/{BULK_MAX}</Pill>}>Add videos</CardHeader>
           <CardBody>
             <Stack gap={12}>
               <Row gap={8} wrap style={{ rowGap: 8 }}>
                 <Pill active={picker === "video"} onClick={() => setPicker(picker === "video" ? "" : "video")}>Winning videos</Pill>
                 <Pill active={picker === "library"} onClick={() => setPicker(picker === "library" ? "" : "library")}>Library script</Pill>
-                <Pill active={picker === "custom"} onClick={() => setPicker(picker === "custom" ? "" : "custom")}>Custom script</Pill>
+                <Pill active={picker === "custom"} onClick={() => setPicker(picker === "custom" ? "" : "custom")}>Custom</Pill>
               </Row>
-              {atCap ? <Callout tone="warning">You've reached the {BULK_MAX}-row maximum. Remove a row to add another.</Callout> : null}
+              {atCap ? <Callout tone="warning">You've reached the {BULK_MAX}-video maximum. Remove a video to add another.</Callout> : null}
 
               {picker === "video" && !atCap ? (
                 <Stack gap={8}>
                   <Row align="center" gap={8} wrap style={{ rowGap: 8 }}>
-                    <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>Pull a winning video to bring its script <span style={{ fontWeight: 600 }}>and its voiceover</span> together — the row arrives ready, and you can still change the voice.</Text>
+                    <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>Pull a winning video to <span style={{ fontWeight: 600 }}>prefill the whole recipe</span> — script, voiceover, soundtrack, creative, skill and visual. Every field stays editable.</Text>
                     <Button variant="secondary" disabled={atCap} onClick={addAllVideos}>Add all winning videos</Button>
                   </Row>
                   <Stack gap={6}>
@@ -1566,10 +1605,10 @@ function BulkVoiceovers() {
                             <Text size="small" truncate style={{ marginTop: 2 }}>“{v.script.text}”</Text>
                             <Row gap={6} align="center" style={{ marginTop: 4 }}>
                               <span style={{ color: theme.text.tertiary, display: "flex" }}><ElIcon type="voiceover" size={12} /></span>
-                              <Text size="small" tone="secondary" truncate>{v.voiceover.artist} — {v.voiceover.provider}</Text>
+                              <Text size="small" tone="secondary" truncate>{v.voiceover.artist} — {v.voiceover.provider} · {v.soundtrack.name} · {v.skill.name}</Text>
                             </Row>
                           </div>
-                          <Button variant="secondary" disabled={atCap} onClick={() => addVideo(v)}>Add script + voice</Button>
+                          <Button variant="secondary" disabled={atCap} onClick={() => addVideo(v)}>Add full recipe</Button>
                         </Row>
                       </div>
                     ))}
@@ -1580,7 +1619,7 @@ function BulkVoiceovers() {
               {picker === "library" && !atCap ? (
                 <Stack gap={8}>
                   <Row align="center" gap={8} wrap style={{ rowGap: 8 }}>
-                    <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>Add just the script — the row will need a voiceover, which you can generate or upload.</Text>
+                    <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>Start from just a script — the video will need a voiceover (generate or upload) and you can fill in the rest.</Text>
                     <Button variant="secondary" disabled={atCap} onClick={addAllLibrary}>Add all library scripts</Button>
                   </Row>
                   <Stack gap={6}>
@@ -1591,8 +1630,8 @@ function BulkVoiceovers() {
 
               {picker === "custom" && !atCap ? (
                 <Stack gap={8}>
-                  <TextArea value={custom} onChange={setCustom} rows={3} placeholder="Write or paste a script to voice…" />
-                  <Row gap={8}><Button variant="primary" disabled={!custom.trim()} onClick={addCustom}>Add script</Button></Row>
+                  <TextArea value={custom} onChange={setCustom} rows={3} placeholder="Write or paste a script — you'll build the rest of the recipe on the card…" />
+                  <Row gap={8}><Button variant="primary" disabled={!custom.trim()} onClick={addCustom}>Add video</Button></Row>
                 </Stack>
               ) : null}
             </Stack>
@@ -1609,78 +1648,159 @@ function BulkVoiceovers() {
         ) : null}
 
         {rows.length === 0 ? (
-          <Callout tone="neutral" title="No rows yet">Add rows above — pull a winning video to carry over its script and voiceover, add a library script (you'll assign a voice), or write your own. Any row missing a voice can be generated or uploaded.</Callout>
+          <Callout tone="neutral" title="No videos yet">Add videos above — pull a winning video to prefill the whole recipe, add a library script, or start from scratch. Each video is a full editable recipe; any missing voiceover can be generated or uploaded.</Callout>
         ) : (
           <Stack gap={10}>
-            <Row align="center">
-              <Text size="small" tone="secondary" weight="medium">{rows.length} {rows.length === 1 ? "row" : "rows"}</Text>
-              {missing > 0 ? (<React.Fragment><Spacer /><Pill size="sm" active tone="warning">{missing} need{missing === 1 ? "s" : ""} voiceover</Pill></React.Fragment>) : null}
+            <Row align="center" gap={8} wrap style={{ rowGap: 8 }}>
+              <Text size="small" tone="secondary" weight="medium">{rows.length} {rows.length === 1 ? "video" : "videos"}</Text>
+              {missing > 0 ? <Pill size="sm" active tone="warning">{missing} need{missing === 1 ? "s" : ""} voiceover</Pill> : null}
+              <Spacer />
+              <Button variant="ghost" onClick={() => setAllExpanded(true)}>Expand all</Button>
+              <Button variant="ghost" onClick={() => setAllExpanded(false)}>Collapse all</Button>
             </Row>
             {rows.map((r, i) => {
               const ed = editor && editor.rowId === r.id ? editor.mode : null;
-              const v = r.voice;
+              const ingredients = [["voiceover", !!r.voice], ["soundtrack", !!r.soundtrack], ["creative", r.creative.trim().length > 0], ["skill", r.skills.length > 0], ["visual", !!r.visual]];
+              const cardBorder = r.expanded ? theme.accent.primary : (!r.voice ? TONE.warning + "88" : theme.stroke.secondary);
               return (
-                <div key={r.id} style={{ border: "1px solid " + (v ? theme.stroke.secondary : TONE.warning + "88"), borderRadius: 12, background: v ? theme.bg.elevated : TONE.warning + "0D", padding: 12 }}>
+                <div key={r.id} style={{ border: "1px solid " + cardBorder, borderRadius: 12, background: !r.voice && !r.expanded ? TONE.warning + "0D" : theme.bg.elevated, padding: 12 }}>
                   <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
                     <NumberBadge n={i + 1} />
-                    <div style={{ flex: 1, minWidth: 180 }}>
+                    <div onClick={() => toggleExpand(r.id)} style={{ flex: 1, minWidth: 200, cursor: "pointer" }}>
                       <Row gap={6} align="center">
-                        <span style={{ color: theme.text.tertiary, display: "flex", flexShrink: 0 }}><ElIcon type="script" size={13} /></span>
-                        <Text weight="medium" truncate>{r.title}</Text>
+                        <span style={{ color: theme.text.tertiary, display: "flex", flexShrink: 0, transform: r.expanded ? "rotate(90deg)" : "none", transition: "transform 120ms ease" }}>
+                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="6,4 10,8 6,12" /></svg>
+                        </span>
+                        <Text weight="medium" truncate>{r.title || "Untitled video"}</Text>
+                        {r.voice && r.voice.origin === "video" ? <Pill size="sm" active tone="info">{bulkOriginLabel(r.voice)}</Pill> : null}
                       </Row>
-                      <Text size="small" tone="tertiary" truncate>{r.text}</Text>
+                      <Text size="small" tone="tertiary" truncate>{r.text || "No script yet"}</Text>
                     </div>
-                    {v ? (
-                      <Row gap={8} align="center" justify="flex-end" style={{ flexShrink: 0 }}>
-                        <Stack gap={2} style={{ alignItems: "flex-end", minWidth: 0 }}>
-                          <Text size="small" truncate style={{ textAlign: "right", maxWidth: 220 }}>{v.value}</Text>
-                          {v.status === "generating" ? <Pill size="sm" tone="neutral">Generating…</Pill> : <Pill size="sm" active tone={BULK_ORIGIN_TONE[v.origin]}>{bulkOriginLabel(v)}</Pill>}
-                        </Stack>
-                        <Button variant="ghost" onClick={() => openEditor(r.id, "reassign")}>Change</Button>
-                      </Row>
+                    <Row gap={6} align="center" style={{ flexShrink: 0 }}>
+                      {ingredients.map(([t, on]) => (
+                        <span key={t} title={TYPE_LABEL[t] + (on ? " · set" : " · not set")} style={{ color: on ? theme.accent.primary : theme.text.quaternary, display: "flex" }}><ElIcon type={t} size={13} /></span>
+                      ))}
+                    </Row>
+                    {r.voice ? (
+                      <Pill size="sm" active tone={r.voice.status === "generating" ? "neutral" : BULK_ORIGIN_TONE[r.voice.origin]}>{r.voice.status === "generating" ? "Generating…" : bulkOriginLabel(r.voice)}</Pill>
                     ) : (
-                      <Row gap={8} align="center" justify="flex-end" wrap style={{ rowGap: 6, flexShrink: 0 }}>
-                        <Pill size="sm" active tone="warning" leadingContent={<ElIcon type="voiceover" size={11} />}>Needs voiceover</Pill>
-                        <Button variant="secondary" onClick={() => openEditor(r.id, "generate")}>Generate</Button>
-                        <Button variant="secondary" onClick={() => openEditor(r.id, "upload")}>Upload</Button>
-                      </Row>
+                      <Pill size="sm" active tone="warning" leadingContent={<ElIcon type="voiceover" size={11} />}>Needs voiceover</Pill>
                     )}
-                    <IconButton title="Remove row" size="sm" onClick={() => removeRow(r.id)}>✕</IconButton>
+                    <Button variant="ghost" onClick={() => toggleExpand(r.id)}>{r.expanded ? "Close" : "Edit"}</Button>
+                    <IconButton title="Remove video" size="sm" onClick={() => removeRow(r.id)}>✕</IconButton>
                   </Row>
 
-                  {ed ? (
-                    <div style={{ marginTop: 12, borderTop: "1px solid " + theme.stroke.tertiary, paddingTop: 12 }}>
-                      {ed === "generate" ? (
-                        <Stack gap={8}>
-                          <Text size="small" tone="tertiary" weight="medium">Generate a voiceover with TTS — choose a voice</Text>
-                          <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
-                            <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
-                            <Button variant="primary" onClick={() => startGenerate(r.id)}>Generate voiceover</Button>
-                            <Button variant="ghost" onClick={() => setEditor(null)}>Cancel</Button>
+                  {r.expanded ? (
+                    <div style={{ marginTop: 12, borderTop: "1px solid " + theme.stroke.tertiary, paddingTop: 14 }}>
+                      <Stack gap={14}>
+                        <Stack gap={6}>
+                          <GroupLabel type="script" />
+                          <TextInput value={r.title} onChange={(val) => updateRow(r.id, { title: val })} placeholder="Video title" />
+                          <TextArea value={r.text} onChange={(val) => updateRow(r.id, { text: val })} rows={3} placeholder="What should this video say?" />
+                        </Stack>
+                        <Divider />
+                        <Stack gap={6}>
+                          <GroupLabel type="voiceover" />
+                          {r.voice ? (
+                            <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
+                              <span style={{ color: theme.text.tertiary, display: "flex", flexShrink: 0 }}><ElIcon type="voiceover" size={13} /></span>
+                              <Text size="small" truncate style={{ flex: 1, minWidth: 0 }}>{r.voice.value}</Text>
+                              {r.voice.status === "generating" ? <Pill size="sm" tone="neutral">Generating…</Pill> : <Pill size="sm" active tone={BULK_ORIGIN_TONE[r.voice.origin]}>{bulkOriginLabel(r.voice)}</Pill>}
+                              <Button variant="ghost" onClick={() => openEditor(r.id, "reassign")}>Change</Button>
+                            </Row>
+                          ) : (
+                            <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
+                              <Pill size="sm" active tone="warning" leadingContent={<ElIcon type="voiceover" size={11} />}>Needs voiceover</Pill>
+                              <Button variant="secondary" onClick={() => openEditor(r.id, "generate")}>Generate</Button>
+                              <Button variant="secondary" onClick={() => openEditor(r.id, "upload")}>Upload</Button>
+                            </Row>
+                          )}
+                          {ed ? (
+                            <div style={{ borderTop: "1px solid " + theme.stroke.tertiary, paddingTop: 10 }}>
+                              {ed === "generate" ? (
+                                <Stack gap={8}>
+                                  <Text size="small" tone="tertiary" weight="medium">Generate a voiceover with TTS — choose a voice</Text>
+                                  <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
+                                    <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
+                                    <Button variant="primary" onClick={() => startGenerate(r.id)}>Generate voiceover</Button>
+                                    <Button variant="ghost" onClick={() => setEditor(null)}>Cancel</Button>
+                                  </Row>
+                                </Stack>
+                              ) : ed === "upload" ? (
+                                <Stack gap={8}>
+                                  <Text size="small" tone="tertiary" weight="medium">Upload a voiceover file</Text>
+                                  <Row gap={8} align="center">
+                                    <div style={{ flex: 1 }}><TextInput value={upDraft} onChange={setUpDraft} placeholder="my-vo-take3.mp3" /></div>
+                                    <Button variant="secondary" disabled={!upDraft.trim()} onClick={() => uploadVoice(r.id, upDraft)}>Upload</Button>
+                                    <Button variant="ghost" onClick={() => setEditor(null)}>Cancel</Button>
+                                  </Row>
+                                  <Row gap={6} wrap style={{ rowGap: 6 }}>{MOCK_VO_FILES.map((f) => <Pill key={f} size="sm" onClick={() => uploadVoice(r.id, f)}>{f}</Pill>)}</Row>
+                                </Stack>
+                              ) : (
+                                <Stack gap={8}>
+                                  <Text size="small" tone="tertiary" weight="medium">Reassign voiceover</Text>
+                                  <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
+                                    <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
+                                    <Button variant="primary" onClick={() => assignRoster(r.id, voDraft)}>Assign from roster</Button>
+                                    <Button variant="secondary" onClick={() => openEditor(r.id, "generate")}>Generate</Button>
+                                    <Button variant="secondary" onClick={() => openEditor(r.id, "upload")}>Upload</Button>
+                                  </Row>
+                                  <Row><Button variant="ghost" onClick={() => { clearVoice(r.id); setEditor(null); }}>Clear voiceover</Button></Row>
+                                </Stack>
+                              )}
+                            </div>
+                          ) : null}
+                        </Stack>
+                        <Divider />
+                        <Stack gap={6}>
+                          <GroupLabel type="soundtrack" />
+                          {r.soundtrack ? (
+                            <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
+                              <Text size="small" truncate style={{ flex: 1, minWidth: 0 }}>{r.soundtrack.value}</Text>
+                              <Pill size="sm" active tone={r.soundtrack.origin === "uploaded" ? "info" : "neutral"}>{r.soundtrack.origin === "uploaded" ? "Uploaded" : "Library"}</Pill>
+                              <Button variant="ghost" onClick={() => clearSoundtrack(r.id)}>Remove</Button>
+                            </Row>
+                          ) : null}
+                          <Select value="none" onChange={(val) => setSoundtrackLibrary(r.id, val)} options={TRACK_OPTIONS} />
+                          <MockUpload stateKey={"bulk.snd." + r.id} currentFile="" placeholder="campaign-bed-loop.mp3" suggestions={MOCK_AUDIO_FILES} onUpload={(f) => setSoundtrackUpload(r.id, f)} />
+                        </Stack>
+                        <Divider />
+                        <Stack gap={6}>
+                          <GroupLabel type="creative" />
+                          <TextArea value={r.creative} onChange={(val) => updateRow(r.id, { creative: val })} rows={3} placeholder="Describe the look and tone in your own words…" />
+                        </Stack>
+                        <Divider />
+                        <Stack gap={6}>
+                          <GroupLabel type="skill" />
+                          <Row gap={6} wrap style={{ rowGap: 6 }}>
+                            {TEMPLATES.map((tpl) => <Pill key={tpl.name} size="sm" active={r.skills.includes(tpl.name)} onClick={() => toggleSkill(r.id, tpl.name)}>{tpl.name}</Pill>)}
                           </Row>
                         </Stack>
-                      ) : ed === "upload" ? (
-                        <Stack gap={8}>
-                          <Text size="small" tone="tertiary" weight="medium">Upload a voiceover file</Text>
-                          <Row gap={8} align="center">
-                            <div style={{ flex: 1 }}><TextInput value={upDraft} onChange={setUpDraft} placeholder="my-vo-take3.mp3" /></div>
-                            <Button variant="secondary" disabled={!upDraft.trim()} onClick={() => uploadVoice(r.id, upDraft)}>Upload</Button>
-                            <Button variant="ghost" onClick={() => setEditor(null)}>Cancel</Button>
+                        <Divider />
+                        <Stack gap={6}>
+                          <GroupLabel type="visual" />
+                          <Row gap={8} wrap style={{ rowGap: 8 }}>
+                            <div style={{ flex: 1, minWidth: 130 }}>
+                              <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Format</Text>
+                              <Select value={r.visual.format} onChange={(val) => setVisual(r.id, "format", val)} options={VISUAL_FORMATS.map((o) => ({ value: o, label: o }))} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 130 }}>
+                              <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Duration</Text>
+                              <Select value={r.visual.duration} onChange={(val) => setVisual(r.id, "duration", val)} options={VISUAL_DURATIONS.map((o) => ({ value: o, label: o }))} />
+                            </div>
                           </Row>
-                          <Row gap={6} wrap style={{ rowGap: 6 }}>{MOCK_VO_FILES.map((f) => <Pill key={f} size="sm" onClick={() => uploadVoice(r.id, f)}>{f}</Pill>)}</Row>
-                        </Stack>
-                      ) : (
-                        <Stack gap={8}>
-                          <Text size="small" tone="tertiary" weight="medium">Reassign voiceover</Text>
-                          <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
-                            <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
-                            <Button variant="primary" onClick={() => assignRoster(r.id, voDraft)}>Assign from roster</Button>
-                            <Button variant="secondary" onClick={() => openEditor(r.id, "generate")}>Generate</Button>
-                            <Button variant="secondary" onClick={() => openEditor(r.id, "upload")}>Upload</Button>
+                          <Row gap={8} wrap style={{ rowGap: 8 }}>
+                            <div style={{ flex: 1, minWidth: 130 }}>
+                              <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Color grade</Text>
+                              <Select value={r.visual.grade} onChange={(val) => setVisual(r.id, "grade", val)} options={VISUAL_GRADES.map((o) => ({ value: o, label: o }))} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 130 }}>
+                              <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Captions</Text>
+                              <Select value={r.visual.captions} onChange={(val) => setVisual(r.id, "captions", val)} options={VISUAL_CAPTIONS.map((o) => ({ value: o, label: o }))} />
+                            </div>
                           </Row>
-                          <Row><Button variant="ghost" onClick={() => { clearVoice(r.id); setEditor(null); }}>Clear voiceover</Button></Row>
                         </Stack>
-                      )}
+                      </Stack>
                     </div>
                   ) : null}
                 </div>
@@ -1693,13 +1813,13 @@ function BulkVoiceovers() {
           <CardBody>
             <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
               <Stack gap={2}>
-                <Text weight="semibold">Generate final voiceovers</Text>
-                <Text size="small" tone="tertiary">{rows.length} {rows.length === 1 ? "row" : "rows"} · {missing} still need a voice</Text>
+                <Text weight="semibold">Generate videos</Text>
+                <Text size="small" tone="tertiary">{rows.length} {rows.length === 1 ? "video" : "videos"} · {missing} still need a voiceover</Text>
               </Stack>
               <Spacer />
               {rows.length > 0 && missing > 0 ? <Pill size="sm" active tone="warning">{missing} unresolved</Pill> : null}
               {rows.length > 0 ? <Button variant="ghost" onClick={clearAll}>Clear all</Button> : null}
-              <Button variant="primary" disabled={rows.length === 0} onClick={bulkGenerate}>Generate {rows.length} final voiceover{rows.length === 1 ? "" : "s"}</Button>
+              <Button variant="primary" disabled={rows.length === 0} onClick={bulkGenerate}>Generate {rows.length} video{rows.length === 1 ? "" : "s"}</Button>
             </Row>
           </CardBody>
         </Card>

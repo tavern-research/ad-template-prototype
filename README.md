@@ -14,16 +14,19 @@ or step through a **guided wizard** instead of wrestling with a cramped form.
 
 ## What's new in v2
 
-A third tab — **Bulk Voiceovers** — lets you generate the final voiceovers for many scripts
-at once. You assemble a list (up to **50 rows**), pairing each script with a voiceover artist,
-then hit **"Generate N final voiceovers"** to produce them in one pass. Any row that has a
-script but **no voice assigned** is flagged **"Needs voiceover"** and prompts you to resolve it
-two ways: **Generate** (mock TTS — pick a voice from the roster, watch it go *generating →
-generated*) or **Upload** (confirm a filename / pick a mock file). Resolved rows show the voice
-with an origin tag (**Roster / Generated / Uploaded**), and the bulk action won't run until
-every row has a voice. You can also **pull a winning video's script + its voiceover together**
-into a row (tagged **"From {video}"**), so it arrives already resolved — and you can still
-change that voice. See [Bulk Voiceovers](#3-bulk-voiceovers) below for details.
+A third tab — **Bulk Voiceovers** — lets you build a batch of up to **50 videos** at once,
+where **each video is a full, expandable recipe card** (styled like the Winning Videos Library
+cards). Collapsed, a card shows a compact summary (index, title, voiceover status, and small
+indicators of which ingredients are set); expand it to edit the whole recipe for that one
+video — **Script, Voiceover, Soundtrack, Creative Direction, Skill/Template, and Visual Style**
+— right there on the card. **Pulling a winning video prefills the entire recipe** (tagged
+**"From {video}"**) and every field stays editable; you can also add a **library script** (script
+only) or a **custom** blank card. Any card without a voice is flagged **"Needs voiceover"** and
+is resolved with **Generate** (mock TTS — *generating → generated*) or **Upload**, with origin
+tags (**Roster / Generated / Uploaded / From {video}**). The primary CTA is **"Generate N
+videos"**: it checks every card has a voiceover (gently pointing you to unresolved ones), then
+shows a confirmation listing each video's full recipe. See [Bulk Voiceovers](#3-bulk-voiceovers)
+below for details.
 
 ## What you can do in it
 
@@ -56,26 +59,31 @@ A guided **8-step wizard** that replaces the cramped single form: Start → Proj
   backing track supports *pick from the library / upload audio* — all tagged by source.
 
 ### 3. Bulk Voiceovers
-*(new in v2)* A focused workspace for pairing many scripts with voiceover artists and
-generating the final voiceovers in bulk.
+*(new in v2)* A workspace for building a batch of videos at once, where **each video is a full,
+expandable recipe card** — not just a script + voiceover row.
 
-- **Build a list of up to 50 rows.** A running **N / 50** counter is shown, and "add" is
-  disabled with a gentle note once you hit the cap.
-- **Populate rows fast:** pull a **winning video** to carry over its **script *and* its
-  voiceover** in one step (one at a time, or **add all winning videos**); add individual
-  scripts **from the library** (script only); write a **custom script**; or **bulk-add all
-  library scripts** at once. Remove any row, and assign or reassign its voiceover artist from
-  the **6-artist roster** at any time.
-- **Winning-video rows arrive resolved:** they're tagged **"From {video title}"** with the
-  video's original voiceover already attached — no "Needs voiceover" prompt — but you can still
-  **Change** the voice (reassign from roster / Generate / Upload) like any other row.
-- **Missing-voiceover prompt:** any row without a voice is clearly flagged **"Needs
-  voiceover"** and offers two actions — **Generate** (simulated TTS using a roster voice) or
-  **Upload** (mock file). Once resolved, the row shows the voice and its **Roster / Generated /
-  Uploaded** origin tag.
-- **Bulk generate:** **"Generate N final voiceovers"** validates that no rows are still
-  missing a voice (pointing you to resolve them if so), then shows a confirmation summary
-  listing every script ↔ voiceover ↔ origin. *(Prototype — no audio is actually rendered.)*
+- **Build up to 50 videos.** A running **N / 50** counter is shown, and "add" is disabled with a
+  gentle note once you hit the cap. **Expand all / Collapse all** keeps the list scannable, and
+  the header shows how many videos still need a voiceover.
+- **Three ways to add a video:** pull a **winning video** to **prefill the entire recipe**
+  (script + voiceover + soundtrack + creative + skill + visual; one at a time or **add all
+  winning videos**), tagged **"From {video title}"**; add a **library script** (script only,
+  other fields blank/defaults, voiceover shows *Needs voiceover*); or add a **custom** blank
+  card. Remove any video at any time.
+- **Expandable rich cards:** collapsed shows index, title, voiceover status, and small
+  indicators of which of the six ingredients are set. Expand to edit the **whole recipe** for
+  that one video — **Script** (title + text), **Voiceover** (roster / Generate / Upload),
+  **Soundtrack** (track library or mock upload, or none), **Creative Direction** (free text),
+  **Skill/Template** (multi-select from the template list), and **Visual Style** (format /
+  duration / color grade / captions).
+- **Missing-voiceover prompt:** any card without a voice is clearly flagged **"Needs
+  voiceover"** and offers **Generate** (simulated TTS using a roster voice, *generating →
+  generated*) or **Upload** (mock file). Resolved voices carry an origin tag — **Roster /
+  Generated / Uploaded / From {video}** — and a winning-video voice can still be changed.
+- **Generate the batch:** **"Generate N videos"** validates that every card has a voiceover
+  (expanding and pointing you to any that don't), then shows a confirmation listing each video's
+  full recipe — script ↔ voiceover (+origin) ↔ soundtrack ↔ creative ↔ skill ↔ visual.
+  *(Prototype — nothing is actually rendered.)*
 
 ## Template Skills referenced
 
