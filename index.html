@@ -877,71 +877,9 @@ function TemplateLibrary() {
 }
 
 /* ================================================================
-   PROTOTYPE 2 — New Batch Flow (8-step wizard)
+   Shared helpers (CheckMark, MockUpload) used by Bulk Studio
    ================================================================ */
 
-const PROJECTS = [
-  { value: "dccc_test", label: "dccc_test" },
-  { value: "bixler_ads", label: "Bixler Ads" },
-  { value: "alani_mt", label: "Alani Bankhead MT" },
-  { value: "jake_play", label: "Jake - Play" },
-];
-const VOICE_ROSTER = [
-  { value: "rachel", label: "Rachel — ElevenLabs · Warm, trustworthy" },
-  { value: "marcus", label: "Marcus — ElevenLabs · Deep, authoritative" },
-  { value: "sofia", label: "Sofía — Play.ht · Bright, energetic" },
-  { value: "darnell", label: "Darnell — WellSaid · Smooth narrator" },
-  { value: "keiko", label: "Keiko — Azure Neural · Calm, precise" },
-  { value: "grace", label: "Grace — ElevenLabs · Empathetic, soft" },
-];
-const TRACKS = [
-  { value: "none", label: "No backing track" },
-  { value: "uplift", label: "Uplifting Corporate" },
-  { value: "tension", label: "Cinematic Tension" },
-  { value: "lofi", label: "Lo-fi Calm" },
-  { value: "epic", label: "Epic Trailer" },
-];
-const GRADES = ["Natural", "Warm", "Cool", "Cinematic", "Vibrant", "Black & White"];
-const FORMATS = ["Horizontal", "Vertical", "Both"];
-const CAPTIONS = ["None", "Standard", "Karaoke", "Word by word", "Subtitle", "Highlight"];
-const SKILLS = [
-  { id: "basic", name: "Basic Skill", blurb: "Message testing template - minimal styling" },
-  { id: "attack", name: "Political Attack Ad", blurb: "High-contrast, urgent pacing, bold captions" },
-  { id: "launch", name: "Product Launch", blurb: "Clean hero shots with confident motion" },
-  { id: "ugc", name: "UGC Testimonial", blurb: "Handheld, authentic, face-to-camera energy" },
-  { id: "broll", name: "Cinematic B-roll", blurb: "Slow push-ins, lush grading, ambient bed" },
-];
-const DEFAULT_SCRIPTS = [
-  { id: "msg_abc123", text: "Maria Torres will fight for our community." },
-  { id: "msg_def456", text: "After 20 years in public service, she's ready to lead." },
-];
-const RECIPES = [
-  { id: "testimonial", name: "Punchy Testimonial", blurb: "Vertical, fast cuts, karaoke captions. A top performer for social feeds.", seed: "tavern-testimonial", tags: ["Vertical", "Karaoke", "30s"],
-    patch: { voiceMode: "roster", voice: "rachel", track: "uplift", creative: "Authentic, face-to-camera testimonial energy. Warm grade, gentle handheld motion, quick cuts on key phrases.", broll: true, labels: ["testimonial", "community"], format: "Vertical", duration: 30, grade: "Warm", captions: "Karaoke", skills: ["ugc"] } },
-  { id: "cinematic", name: "Cinematic Brand Story", blurb: "Horizontal, lush b-roll and a narrator voice. Premium and emotional.", seed: "tavern-cinematic", tags: ["Horizontal", "Cinematic", "60s"],
-    patch: { voiceMode: "roster", voice: "darnell", track: "epic", creative: "Emotional, cinematic tone with slow push-ins and dramatic lighting. Lush color grade, sweeping ambient score.", broll: true, labels: ["brand", "story", "hero"], format: "Horizontal", duration: 60, grade: "Cinematic", captions: "Subtitle", skills: ["broll"] } },
-  { id: "promo", name: "Quick Promo", blurb: "Both formats, bright and energetic. Great for time-sensitive offers.", seed: "tavern-promo", tags: ["Both", "Standard", "15s"],
-    patch: { voiceMode: "roster", voice: "sofia", track: "uplift", creative: "Bright, energetic promo. Punchy on-screen text, vibrant grade, upbeat pacing that lands the offer fast.", broll: false, labels: ["promo", "offer"], format: "Both", duration: 15, grade: "Vibrant", captions: "Standard", skills: ["launch"] } },
-];
-const STEPS = ["Start", "Project", "Scripts", "Voice & Audio", "Creative", "Visual", "Skills", "Review"];
-
-const DEFAULT_CFG = {
-  project: "dccc_test", batchName: "", scripts: DEFAULT_SCRIPTS,
-  voiceMode: "agent", voice: "agent", voiceFile: "",
-  trackMode: "library", track: "none", trackFile: "",
-  creative: "", broll: true, labels: [], format: "Horizontal", duration: 30, grade: "Natural", captions: "Standard", skills: ["basic"],
-};
-
-function labelFor(list, value) { const f = list.find((o) => o.value === value); return f ? f.label : value; }
-function voiceSummary(cfg) {
-  if (cfg.voiceMode === "upload") return { label: cfg.voiceFile || "Upload pending", tag: "Uploaded" };
-  if (cfg.voiceMode === "roster") return { label: labelFor(VOICE_ROSTER, cfg.voice), tag: "Roster" };
-  return { label: "Agent decides" };
-}
-function trackSummary(cfg) {
-  if (cfg.trackMode === "upload") return { label: cfg.trackFile || "Upload pending", tag: "Uploaded" };
-  return { label: labelFor(TRACKS, cfg.track) };
-}
 function CheckMark({ color }) {
   return (<svg width={12} height={12} viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2l2.3 2.3L9.5 3.5" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" /></svg>);
 }
@@ -969,462 +907,8 @@ function MockUpload({ stateKey, currentFile, placeholder, suggestions, onUpload 
   );
 }
 
-function Stepper({ current, furthest, onJump }) {
-  const theme = useHostTheme();
-  return (
-    <Row gap={0} align="center" wrap style={{ rowGap: 8 }}>
-      {STEPS.map((label, i) => {
-        const done = i < furthest;
-        const active = i === current;
-        const reachable = i <= furthest;
-        const circleBg = active ? theme.accent.primary : done ? theme.fill.secondary : "transparent";
-        const circleBorder = active ? theme.accent.primary : reachable ? theme.stroke.primary : theme.stroke.tertiary;
-        const numColor = active ? theme.text.onAccent : reachable ? theme.text.secondary : theme.text.quaternary;
-        return (
-          <Row key={label} gap={0} align="center">
-            <div onClick={() => (reachable ? onJump(i) : undefined)} style={{ display: "flex", alignItems: "center", gap: 8, cursor: reachable ? "pointer" : "default", padding: "4px 6px", borderRadius: 8 }}>
-              <div style={{ width: 22, height: 22, borderRadius: 999, background: circleBg, border: "1px solid " + circleBorder, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, color: numColor, flexShrink: 0 }}>
-                {done ? <CheckMark color={theme.text.secondary} /> : i + 1}
-              </div>
-              <Text size="small" weight={active ? "semibold" : "normal"} tone={active ? "primary" : reachable ? "secondary" : "quaternary"}>{label}</Text>
-            </div>
-            {i < STEPS.length - 1 ? <div style={{ width: 18, height: 1, background: done ? theme.accent.primary : theme.stroke.tertiary, margin: "0 2px" }} /> : null}
-          </Row>
-        );
-      })}
-    </Row>
-  );
-}
-
-function Field({ label, hint, children }) {
-  return (
-    <Stack gap={6}>
-      <Text size="small" weight="semibold" tone="secondary">{label}</Text>
-      {children}
-      {hint ? <Text size="small" tone="tertiary">{hint}</Text> : null}
-    </Stack>
-  );
-}
-
-function Segmented({ options, value, onChange }) {
-  return (
-    <Row gap={8} wrap style={{ rowGap: 8 }}>
-      {options.map((opt) => <Pill key={opt} active={opt === value} onClick={() => onChange(opt)}>{opt}</Pill>)}
-    </Row>
-  );
-}
-
-function SelectableCard({ selected, onClick, children }) {
-  const theme = useHostTheme();
-  return (
-    <div onClick={onClick} style={{ cursor: "pointer", borderRadius: 12, border: "1px solid " + (selected ? theme.accent.primary : theme.stroke.secondary), background: selected ? theme.fill.secondary : theme.bg.elevated, padding: 14, transition: "border-color 120ms ease, background 120ms ease" }}>
-      {children}
-    </div>
-  );
-}
-
-function PreviewThumb({ format, seed }) {
-  const theme = useHostTheme();
-  const frame = (w, h, key) => (
-    <div key={key} style={{ width: w, height: h, borderRadius: 8, overflow: "hidden", border: "1px solid " + theme.stroke.secondary, background: theme.fill.tertiary, flexShrink: 0 }}>
-      <FlatPoster seed={seed + key} />
-    </div>
-  );
-  return (
-    <Row gap={8} align="center" justify="center" style={{ padding: "4px 0" }}>
-      {format === "Vertical" ? frame(72, 128, "v") : format === "Both" ? (<React.Fragment>{frame(112, 63, "h")}{frame(40, 71, "v")}</React.Fragment>) : frame(180, 101, "h")}
-    </Row>
-  );
-}
-
-function SummaryRow({ label, value, tag }) {
-  return (
-    <Row gap={8} align="start" justify="space-between">
-      <Text size="small" tone="tertiary" style={{ flexShrink: 0 }}>{label}</Text>
-      <Row gap={6} align="center" style={{ minWidth: 0, justifyContent: "flex-end" }}>
-        {tag ? <Pill size="sm" active tone={tag === "Uploaded" ? "info" : "neutral"}>{tag}</Pill> : null}
-        <Text size="small" weight="medium" truncate style={{ textAlign: "right" }}>{value}</Text>
-      </Row>
-    </Row>
-  );
-}
-
-function SummaryPanel({ cfg }) {
-  const theme = useHostTheme();
-  const formatCount = cfg.format === "Both" ? 2 : 1;
-  const outputs = cfg.scripts.length * formatCount;
-  const vs = voiceSummary(cfg);
-  const ts = trackSummary(cfg);
-  return (
-    <Card>
-      <CardHeader trailing={<Pill size="sm" tone="info">Live</Pill>}>Your recipe</CardHeader>
-      <CardBody>
-        <Stack gap={14}>
-          <PreviewThumb format={cfg.format} seed={cfg.scripts[0] ? cfg.scripts[0].id : "tavern"} />
-          <div style={{ textAlign: "center", padding: "10px 0", borderRadius: 10, background: theme.fill.tertiary }}>
-            <Text weight="semibold" style={{ fontSize: 22 }}>{String(outputs)}</Text>
-            <Text size="small" tone="tertiary">videos to render</Text>
-          </div>
-          <Stack gap={8}>
-            <SummaryRow label="Project" value={labelFor(PROJECTS, cfg.project)} />
-            <SummaryRow label="Batch" value={cfg.batchName || "Untitled"} />
-            <SummaryRow label="Scripts" value={String(cfg.scripts.length)} />
-            <SummaryRow label="Voice" value={vs.label} tag={vs.tag} />
-            <SummaryRow label="Music" value={ts.label} tag={ts.tag} />
-            <SummaryRow label="Format" value={cfg.format} />
-            <SummaryRow label="Length" value={cfg.duration + "s"} />
-            <SummaryRow label="Grade" value={cfg.grade} />
-            <SummaryRow label="Captions" value={cfg.captions} />
-            <SummaryRow label="B-roll" value={cfg.broll ? "On" : "Off"} />
-          </Stack>
-          {cfg.skills.length > 0 ? (
-            <React.Fragment>
-              <Divider />
-              <Stack gap={6}>
-                <Text size="small" tone="tertiary">Skills</Text>
-                <Row gap={6} wrap style={{ rowGap: 6 }}>
-                  {cfg.skills.map((s) => { const sk = SKILLS.find((x) => x.id === s); return <Pill key={s} size="sm" active>{sk ? sk.name : s}</Pill>; })}
-                </Row>
-              </Stack>
-            </React.Fragment>
-          ) : null}
-        </Stack>
-      </CardBody>
-    </Card>
-  );
-}
-
-function ScriptsEditor({ cfg, patch }) {
-  const theme = useHostTheme();
-  const update = (i, text) => patch({ scripts: cfg.scripts.map((s, idx) => (idx === i ? { ...s, text } : s)) });
-  const remove = (i) => patch({ scripts: cfg.scripts.filter((_, idx) => idx !== i) });
-  const add = () => patch({ scripts: [...cfg.scripts, { id: "msg_" + Math.random().toString(36).slice(2, 8), text: "" }] });
-  return (
-    <Stack gap={10}>
-      {cfg.scripts.map((s, i) => (
-        <div key={s.id} style={{ border: "1px solid " + theme.stroke.secondary, borderRadius: 10, padding: 12, background: theme.bg.elevated }}>
-          <Row gap={8} align="center">
-            <Text size="small" weight="semibold" tone="secondary">Script {i + 1}</Text>
-            <Pill size="sm">{s.id}</Pill>
-            <Spacer />
-            {cfg.scripts.length > 1 ? <div onClick={() => remove(i)} style={{ cursor: "pointer", color: theme.text.tertiary, fontSize: 12, padding: 4 }}>Remove</div> : null}
-          </Row>
-          <div style={{ height: 8 }} />
-          <TextInput value={s.text} onChange={(v) => update(i, v)} placeholder="What should this video say?" />
-        </div>
-      ))}
-      <Row><Button variant="secondary" onClick={add}>+ Add another script</Button></Row>
-    </Stack>
-  );
-}
-
-function ChipInput({ values, placeholder, onAdd, onRemove }) {
-  const [draft, setDraft] = useCanvasState("nbf.labelDraft", "");
-  const commit = () => { const t = draft.trim(); if (t.length > 0 && !values.includes(t)) onAdd(t); setDraft(""); };
-  return (
-    <Stack gap={8}>
-      <Row gap={8} align="center">
-        <div style={{ flex: 1 }}><TextInput value={draft} onChange={setDraft} placeholder={placeholder} /></div>
-        <Button variant="secondary" onClick={commit}>Add</Button>
-      </Row>
-      {values.length > 0 ? (
-        <Row gap={6} wrap style={{ rowGap: 6 }}>
-          {values.map((v) => <Pill key={v} active onClick={() => onRemove(v)}>{v}  ✕</Pill>)}
-        </Row>
-      ) : null}
-    </Stack>
-  );
-}
-
-function StepBody(props) {
-  const { step, cfg, patch, entry, setEntry, selectedRecipe, onPickRecipe } = props;
-  const theme = useHostTheme();
-
-  if (step === 0) {
-    return (
-      <Stack gap={18}>
-        <Stack gap={4}>
-          <Text weight="semibold" style={{ fontSize: 18 }}>How would you like to start?</Text>
-          <Text tone="secondary">Begin from a proven template, or build a batch from scratch. You can change anything later.</Text>
-        </Stack>
-        <Grid columns={2} gap={12}>
-          <SelectableCard selected={entry === "recipe"} onClick={() => setEntry("recipe")}>
-            <Stack gap={6}>
-              <Pill size="sm" tone="success">Recommended</Pill>
-              <Text weight="semibold">Use a winning recipe</Text>
-              <Text size="small" tone="secondary">Prefill every setting from a template that already performs well, then tweak.</Text>
-            </Stack>
-          </SelectableCard>
-          <SelectableCard selected={entry === "scratch"} onClick={() => setEntry("scratch")}>
-            <Stack gap={6}>
-              <Pill size="sm">Full control</Pill>
-              <Text weight="semibold">Start from scratch</Text>
-              <Text size="small" tone="secondary">Smart defaults are pre-selected. Step through and adjust only what you need.</Text>
-            </Stack>
-          </SelectableCard>
-        </Grid>
-        {entry === "recipe" ? (
-          <Stack gap={10}>
-            <Text size="small" weight="semibold" tone="secondary">Pick a recipe to prefill</Text>
-            <Grid columns={3} gap={12}>
-              {RECIPES.map((r) => (
-                <SelectableCard key={r.id} selected={selectedRecipe === r.id} onClick={() => onPickRecipe(r)}>
-                  <Stack gap={8}>
-                    <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid " + theme.stroke.tertiary, height: 96 }}>
-                      <FlatPoster seed={r.seed} play />
-                    </div>
-                    <Text weight="semibold">{r.name}</Text>
-                    <Text size="small" tone="secondary">{r.blurb}</Text>
-                    <Row gap={6} wrap style={{ rowGap: 6 }}>{r.tags.map((t) => <Pill key={t} size="sm">{t}</Pill>)}</Row>
-                  </Stack>
-                </SelectableCard>
-              ))}
-            </Grid>
-            <Callout tone="info">Browse the full <span style={{ fontWeight: 600 }}>Template Library</span> to save your best batches as reusable recipes for the whole team.</Callout>
-          </Stack>
-        ) : null}
-      </Stack>
-    );
-  }
-
-  if (step === 1) {
-    return (
-      <Stack gap={18}>
-        <Field label="Project" hint="Where these videos will live."><Select value={cfg.project} onChange={(v) => patch({ project: v })} options={PROJECTS} /></Field>
-        <Field label="Batch name" hint="Give this run a name you'll recognize later."><TextInput value={cfg.batchName} onChange={(v) => patch({ batchName: v })} placeholder="e.g. Q3 Launch - Variant A" /></Field>
-      </Stack>
-    );
-  }
-
-  if (step === 2) {
-    return (
-      <Stack gap={16}>
-        <Stack gap={4}>
-          <Text weight="semibold" style={{ fontSize: 16 }}>What should the videos say?</Text>
-          <Text size="small" tone="secondary">Each script becomes its own ad. Write in plain language - the agent handles pacing and delivery.</Text>
-        </Stack>
-        <ScriptsEditor cfg={cfg} patch={patch} />
-      </Stack>
-    );
-  }
-
-  if (step === 3) {
-    const voiceModeLabel = cfg.voiceMode === "agent" ? "Agent decides" : cfg.voiceMode === "roster" ? "Pick from roster" : "Upload your own";
-    const onVoiceMode = (lbl) => {
-      const mode = lbl === "Agent decides" ? "agent" : lbl === "Pick from roster" ? "roster" : "upload";
-      const needsDefault = mode === "roster" && (!cfg.voice || cfg.voice === "agent");
-      patch(needsDefault ? { voiceMode: mode, voice: VOICE_ROSTER[0].value } : { voiceMode: mode });
-    };
-    const trackModeLabel = cfg.trackMode === "upload" ? "Upload audio" : "From library";
-    const onTrackMode = (lbl) => patch({ trackMode: lbl === "Upload audio" ? "upload" : "library" });
-    return (
-      <Stack gap={18}>
-        <Field label="Voiceover" hint="Let the agent match a voice, choose from the roster, or upload your own take.">
-          <Stack gap={10}>
-            <Segmented options={["Agent decides", "Pick from roster", "Upload your own"]} value={voiceModeLabel} onChange={onVoiceMode} />
-            {cfg.voiceMode === "agent" ? <Callout tone="neutral">The agent auto-matches a voice to each script based on tone and pacing.</Callout> : null}
-            {cfg.voiceMode === "roster" ? <Select value={cfg.voice && cfg.voice !== "agent" ? cfg.voice : VOICE_ROSTER[0].value} onChange={(v) => patch({ voice: v })} options={VOICE_ROSTER} /> : null}
-            {cfg.voiceMode === "upload" ? <MockUpload stateKey="nbf.voUpload" currentFile={cfg.voiceFile} placeholder="my-vo-take3.mp3" suggestions={MOCK_VO_FILES} onUpload={(f) => patch({ voiceFile: f })} /> : null}
-          </Stack>
-        </Field>
-        <Field label="Backing track" hint="Pick from the library or upload your own audio. Music is mixed under the voiceover at a safe level.">
-          <Stack gap={10}>
-            <Segmented options={["From library", "Upload audio"]} value={trackModeLabel} onChange={onTrackMode} />
-            {cfg.trackMode === "library" ? <Select value={cfg.track} onChange={(v) => patch({ track: v })} options={TRACKS} /> : null}
-            {cfg.trackMode === "upload" ? <MockUpload stateKey="nbf.trackUpload" currentFile={cfg.trackFile} placeholder="campaign-bed-loop.mp3" suggestions={MOCK_AUDIO_FILES} onUpload={(f) => patch({ trackFile: f })} /> : null}
-          </Stack>
-        </Field>
-      </Stack>
-    );
-  }
-
-  if (step === 4) {
-    return (
-      <Stack gap={18}>
-        <Field label="Creative direction" hint="Describe the vibe in your own words. Examples: 'warm and hopeful', 'urgent, high-contrast'.">
-          <TextArea value={cfg.creative} onChange={(v) => patch({ creative: v })} rows={4} placeholder="Emotional, hopeful tone with slow zoom-ins and warm color grading." />
-        </Field>
-        <Row align="center" gap={12}>
-          <Stack gap={2}>
-            <Text size="small" weight="semibold" tone="secondary">Include b-roll footage</Text>
-            <Text size="small" tone="tertiary">Pull supporting clips from your shared video library.</Text>
-          </Stack>
-          <Spacer />
-          <Toggle checked={cfg.broll} onChange={(v) => patch({ broll: v })} />
-        </Row>
-        <Field label="Search labels" hint="Tags that guide which b-roll clips get pulled.">
-          <ChipInput values={cfg.labels} placeholder="Type a label and press Add" onAdd={(v) => patch({ labels: [...cfg.labels, v] })} onRemove={(v) => patch({ labels: cfg.labels.filter((x) => x !== v) })} />
-        </Field>
-      </Stack>
-    );
-  }
-
-  if (step === 5) {
-    return (
-      <Stack gap={18}>
-        <Field label="Output format" hint="Both renders a 16:9 and a 9:16 cut of every script."><Segmented options={FORMATS} value={cfg.format} onChange={(v) => patch({ format: v })} /></Field>
-        <Row gap={12} align="end" wrap style={{ rowGap: 12 }}>
-          <div style={{ flex: 1, minWidth: 160 }}>
-            <Field label="Duration"><Select value={String(cfg.duration)} onChange={(v) => patch({ duration: Number(v) })} options={[15, 30, 45, 60].map((d) => ({ value: String(d), label: d + " seconds" }))} /></Field>
-          </div>
-          <div style={{ flex: 1, minWidth: 160 }}>
-            <Field label="Color grade"><Select value={cfg.grade} onChange={(v) => patch({ grade: v })} options={GRADES.map((g) => ({ value: g, label: g }))} /></Field>
-          </div>
-        </Row>
-        <Field label="Captions" hint="How on-screen text animates with the voiceover."><Segmented options={CAPTIONS} value={cfg.captions} onChange={(v) => patch({ captions: v })} /></Field>
-        <Callout tone="neutral">Resolution and frame rate use studio defaults (1080p, 30fps). Adjust these in advanced settings if needed.</Callout>
-      </Stack>
-    );
-  }
-
-  if (step === 6) {
-    return (
-      <Stack gap={14}>
-        <Stack gap={4}>
-          <Text weight="semibold" style={{ fontSize: 16 }}>Apply skills</Text>
-          <Text size="small" tone="secondary">Skills are reusable style presets. Select any that fit - they layer on top of your creative direction.</Text>
-        </Stack>
-        <Grid columns={2} gap={12}>
-          {SKILLS.map((sk) => {
-            const on = cfg.skills.includes(sk.id);
-            return (
-              <SelectableCard key={sk.id} selected={on} onClick={() => patch({ skills: on ? cfg.skills.filter((x) => x !== sk.id) : [...cfg.skills, sk.id] })}>
-                <Row gap={10} align="start">
-                  <Stack gap={4} style={{ flex: 1 }}>
-                    <Text weight="semibold">{sk.name}</Text>
-                    <Text size="small" tone="secondary">{sk.blurb}</Text>
-                  </Stack>
-                  {on ? <Pill size="sm" tone="success">On</Pill> : null}
-                </Row>
-              </SelectableCard>
-            );
-          })}
-        </Grid>
-      </Stack>
-    );
-  }
-
-  const formatCount = cfg.format === "Both" ? 2 : 1;
-  const outputs = cfg.scripts.length * formatCount;
-  const vs = voiceSummary(cfg);
-  const ts = trackSummary(cfg);
-  return (
-    <Stack gap={16}>
-      <Stack gap={4}>
-        <Text weight="semibold" style={{ fontSize: 16 }}>Review and create</Text>
-        <Text size="small" tone="secondary">This batch will render <span style={{ fontWeight: 600 }}>{String(outputs)}</span> videos from {String(cfg.scripts.length)} script{cfg.scripts.length === 1 ? "" : "s"}.</Text>
-      </Stack>
-      <Card>
-        <CardHeader>Scripts</CardHeader>
-        <CardBody>
-          <Stack gap={8}>
-            {cfg.scripts.map((s, i) => (
-              <Row key={s.id} gap={8} align="start">
-                <Text size="small" tone="tertiary" style={{ flexShrink: 0 }}>{i + 1}.</Text>
-                <Text size="small">{s.text || "(empty)"}</Text>
-              </Row>
-            ))}
-          </Stack>
-        </CardBody>
-      </Card>
-      <Grid columns={2} gap={12}>
-        <Card>
-          <CardHeader>Voice & audio</CardHeader>
-          <CardBody><Stack gap={8}><SummaryRow label="Voice" value={vs.label} tag={vs.tag} /><SummaryRow label="Track" value={ts.label} tag={ts.tag} /></Stack></CardBody>
-        </Card>
-        <Card>
-          <CardHeader>Visual style</CardHeader>
-          <CardBody><Stack gap={8}><SummaryRow label="Format" value={cfg.format} /><SummaryRow label="Duration" value={cfg.duration + "s"} /><SummaryRow label="Grade" value={cfg.grade} /><SummaryRow label="Captions" value={cfg.captions} /></Stack></CardBody>
-        </Card>
-      </Grid>
-      {cfg.creative.trim().length > 0 ? (
-        <Card><CardHeader>Creative direction</CardHeader><CardBody><Text size="small">{cfg.creative}</Text></CardBody></Card>
-      ) : null}
-    </Stack>
-  );
-}
-
-function CreatedScreen({ cfg, onReset }) {
-  const theme = useHostTheme();
-  const formatCount = cfg.format === "Both" ? 2 : 1;
-  const outputs = cfg.scripts.length * formatCount;
-  return (
-    <Stack gap={20} style={{ maxWidth: 560, margin: "0 auto", paddingTop: 24 }}>
-      <Stack gap={10} style={{ alignItems: "center", textAlign: "center" }}>
-        <div style={{ width: 48, height: 48, borderRadius: 999, background: theme.fill.secondary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <CheckMark color={theme.accent.primary} />
-        </div>
-        <H1>Batch queued</H1>
-        <Text tone="secondary"><span style={{ fontWeight: 600 }}>{cfg.batchName || "Untitled batch"}</span> is now rendering {String(outputs)} videos in {labelFor(PROJECTS, cfg.project)}.</Text>
-      </Stack>
-      <Grid columns={3} gap={12}>
-        <Card><CardBody><Stack gap={2} style={{ alignItems: "center" }}><Text weight="semibold" style={{ fontSize: 22 }}>{String(outputs)}</Text><Text size="small" tone="tertiary">queued</Text></Stack></CardBody></Card>
-        <Card><CardBody><Stack gap={2} style={{ alignItems: "center" }}><Text weight="semibold" style={{ fontSize: 22 }}>{cfg.format}</Text><Text size="small" tone="tertiary">format</Text></Stack></CardBody></Card>
-        <Card><CardBody><Stack gap={2} style={{ alignItems: "center" }}><Text weight="semibold" style={{ fontSize: 22 }}>{cfg.duration + "s"}</Text><Text size="small" tone="tertiary">length</Text></Stack></CardBody></Card>
-      </Grid>
-      <Callout tone="success" title="What happens next">You'll get a notification as each video finishes. Track progress on the batch detail page.</Callout>
-      <Row justify="center"><Button variant="secondary" onClick={onReset}>Create another batch</Button></Row>
-    </Stack>
-  );
-}
-
-function NewBatchFlow() {
-  const theme = useHostTheme();
-  const [cfg, setCfg] = useCanvasState("nbf.cfg.v2", DEFAULT_CFG);
-  const [step, setStep] = useCanvasState("nbf.step", 0);
-  const [furthest, setFurthest] = useCanvasState("nbf.furthest", 0);
-  const [entry, setEntry] = useCanvasState("nbf.entry", "");
-  const [selectedRecipe, setSelectedRecipe] = useCanvasState("nbf.recipe", "");
-  const [created, setCreated] = useCanvasState("nbf.created", false);
-
-  const patch = (p) => setCfg((prev) => ({ ...prev, ...p }));
-  const goTo = (i) => { const next = Math.max(0, Math.min(STEPS.length - 1, i)); setStep(next); setFurthest((f) => Math.max(f, next)); };
-  const onPickRecipe = (r) => { setSelectedRecipe(r.id); patch(r.patch); };
-  const reset = () => { setCfg(DEFAULT_CFG); setStep(0); setFurthest(0); setEntry(""); setSelectedRecipe(""); setCreated(false); };
-
-  if (created) {
-    return <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px" }}><CreatedScreen cfg={cfg} onReset={reset} /></div>;
-  }
-
-  const isLast = step === STEPS.length - 1;
-  const canContinue = step !== 0 || entry === "scratch" || (entry === "recipe" && selectedRecipe !== "");
-  const showSkip = step >= 4 && step <= 6;
-
-  return (
-    <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px" }}>
-      <Stack gap={20} style={{ maxWidth: 1040, margin: "0 auto" }}>
-        <Stack gap={4}>
-          <H1>New Batch</H1>
-          <Text tone="secondary">A guided way to turn scripts into finished ad videos.</Text>
-        </Stack>
-        <div style={{ border: "1px solid " + theme.stroke.tertiary, borderRadius: 12, padding: "12px 14px", background: theme.bg.chrome }}>
-          <Stepper current={step} furthest={furthest} onJump={goTo} />
-        </div>
-        <Grid columns="1fr 320px" gap={20} align="start">
-          <Card>
-            <CardHeader>{STEPS[step]}</CardHeader>
-            <CardBody>
-              <StepBody step={step} cfg={cfg} patch={patch} entry={entry} setEntry={setEntry} selectedRecipe={selectedRecipe} onPickRecipe={onPickRecipe} />
-              <div style={{ height: 20 }} />
-              <Divider />
-              <div style={{ height: 16 }} />
-              <Row gap={8} align="center">
-                <Button variant="ghost" disabled={step === 0} onClick={() => goTo(step - 1)}>Back</Button>
-                <Spacer />
-                {showSkip ? <Button variant="ghost" onClick={() => goTo(STEPS.length - 1)}>Skip to review</Button> : null}
-                {isLast ? <Button variant="primary" onClick={() => setCreated(true)}>Create Batch</Button> : <Button variant="primary" disabled={!canContinue} onClick={() => goTo(step + 1)}>Continue</Button>}
-              </Row>
-            </CardBody>
-          </Card>
-          <SummaryPanel cfg={cfg} />
-        </Grid>
-      </Stack>
-    </div>
-  );
-}
-
 /* ================================================================
-   PROTOTYPE 3 — Bulk Studio
+   PROTOTYPE 2 — Bulk Studio
    ================================================================ */
 
 const LIBRARY_SCRIPTS = VIDEOS.map((v) => ({ id: v.script.id, title: v.title, text: v.script.text }));
@@ -1717,23 +1201,25 @@ function simulateDOCX(filename) {
   return SIM_DOCX_SCRIPTS.slice(0, n);
 }
 
-function DropZone({ accept, multiple, onFiles, label, hint }) {
+function DropZone({ accept, multiple, onFiles, label, hint, disabled, disabledReason }) {
   const theme = useHostTheme();
   const [hover, setHover] = useState(false);
   const inputRef = useRef(null);
-  const handle = (fileList) => { const arr = Array.from(fileList || []); if (arr.length) onFiles(arr); };
+  const handle = (fileList) => { if (disabled) return; const arr = Array.from(fileList || []); if (arr.length) onFiles(arr); };
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); if (!hover) setHover(true); }}
+      title={disabled && disabledReason ? disabledReason : undefined}
+      onDragOver={(e) => { if (disabled) return; e.preventDefault(); if (!hover) setHover(true); }}
       onDragLeave={() => setHover(false)}
-      onDrop={(e) => { e.preventDefault(); setHover(false); handle(e.dataTransfer.files); }}
-      onClick={() => inputRef.current && inputRef.current.click()}
-      style={{ border: "1px dashed " + (hover ? theme.accent.primary : theme.stroke.primary), borderRadius: 11, padding: "18px 14px", background: hover ? theme.fill.tertiary : theme.fill.quaternary, cursor: "pointer", textAlign: "center", transition: "background 120ms ease, border-color 120ms ease" }}
+      onDrop={(e) => { if (disabled) return; e.preventDefault(); setHover(false); handle(e.dataTransfer.files); }}
+      onClick={() => { if (disabled) return; inputRef.current && inputRef.current.click(); }}
+      style={{ border: "1px dashed " + (hover && !disabled ? theme.accent.primary : theme.stroke.primary), borderRadius: 11, padding: "18px 14px", background: disabled ? theme.fill.tertiary : (hover ? theme.fill.tertiary : theme.fill.quaternary), cursor: disabled ? "not-allowed" : "pointer", textAlign: "center", transition: "background 120ms ease, border-color 120ms ease", opacity: disabled ? 0.55 : 1 }}
     >
-      <input ref={inputRef} type="file" accept={accept} multiple={!!multiple} onChange={(e) => { handle(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+      <input ref={inputRef} type="file" accept={accept} multiple={!!multiple} disabled={!!disabled} onChange={(e) => { handle(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
       <Stack gap={4} style={{ alignItems: "center" }}>
         <Text size="small" weight="semibold">{label}</Text>
         {hint ? <Text size="small" tone="tertiary">{hint}</Text> : null}
+        {disabled && disabledReason ? <Text size="small" tone="tertiary">{disabledReason}</Text> : null}
       </Stack>
     </div>
   );
@@ -1748,6 +1234,11 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
   const [note, setNote] = useCanvasState("bulk.note", "");
   const [created, setCreated] = useCanvasState("bulk.created", null);
   const [uploadStatus, setUploadStatus] = useCanvasState("bulk.uploadStatus", null);
+  const [mode, setMode] = useCanvasState("bulk.mode", "per-video");
+  const [shared, setShared] = useCanvasState("bulk.shared", { voice: { origin: "agent", value: "Agent decides" }, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } });
+  const [sharedEditing, setSharedEditing] = useCanvasState("bulk.sharedEditing", null);
+  const [confirmCopy, setConfirmCopy] = useCanvasState("bulk.confirmCopy", false);
+  const isQuick = mode === "quick";
 
   const atCap = rows.length >= BULK_MAX;
   const missing = rows.filter((r) => !r.voice).length;
@@ -1802,6 +1293,61 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
   };
   const uploadVoice = (id, file) => { const f = (file || "").trim(); if (!f) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "uploaded", value: f }, editing: null } : r))); };
   const clearVoice = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: null } : r)));
+
+  const requestModeSwitch = (next) => {
+    if (next === mode) return;
+    if (next === "per-video" && mode === "quick" && rows.length > 0) { setConfirmCopy(true); return; }
+    setMode(next);
+    setSharedEditing(null);
+  };
+  const applyCopyShared = (copy) => {
+    if (copy) {
+      setRows((p) => p.map((r) => ({
+        ...r,
+        voice: r.voice || (shared.voice && shared.voice.origin !== "agent" ? shared.voice : r.voice),
+        soundtrack: r.soundtrack || (shared.soundtrack || null),
+        creative: r.creative || (shared.creative || ""),
+        skills: r.skills.length ? r.skills : [...(shared.skills || [])],
+        visual: r.visual || { ...(shared.visual || DEFAULT_VISUAL_DRAFT) },
+      })));
+      setNote("Copied the shared recipe into each card where the field was empty.");
+    }
+    setMode("per-video");
+    setConfirmCopy(false);
+    setSharedEditing(null);
+  };
+
+  const setSharedField = (key, val) => setShared((p) => ({ ...p, [key]: val }));
+  const setSharedVisualField = (key, val) => setShared((p) => ({ ...p, visual: { ...(p.visual || DEFAULT_VISUAL_DRAFT), [key]: val } }));
+  const addSharedSkill = (n) => setShared((p) => (p.skills || []).includes(n) ? p : { ...p, skills: [...(p.skills || []), n] });
+  const removeSharedSkill = (n) => setShared((p) => ({ ...p, skills: (p.skills || []).filter((x) => x !== n) }));
+  const setSharedEdit = (val) => setSharedEditing((p) => (p === val ? null : val));
+  const sharedAssignRoster = (voId) => { const o = voById(voId); if (!o) return; setShared((p) => ({ ...p, voice: { origin: "roster", value: rosterVoiceValue(o) } })); setSharedEditing(null); };
+  const sharedAgent = () => { setShared((p) => ({ ...p, voice: { origin: "agent", value: "Agent decides" } })); setSharedEditing(null); };
+  const sharedUploadVoice = (f) => { const v = (f || "").trim(); if (!v) return; setShared((p) => ({ ...p, voice: { origin: "uploaded", value: v } })); setSharedEditing(null); };
+  const sharedUseVideoVoice = (v) => { setShared((p) => ({ ...p, voice: { origin: "video", value: v.voiceover.artist + " — " + v.voiceover.provider, from: v.title } })); setSharedEditing(null); };
+  const sharedSetSoundtrackLibrary = (t) => { setShared((p) => ({ ...p, soundtrack: { origin: "library", value: t.name + " · " + t.mood } })); setSharedEditing(null); };
+  const sharedSetSoundtrackUpload = (f) => { setShared((p) => ({ ...p, soundtrack: { origin: "uploaded", value: f } })); setSharedEditing(null); };
+  const sharedClearSoundtrack = () => setShared((p) => ({ ...p, soundtrack: null }));
+  const sharedUseVideoTrack = (v) => { setShared((p) => ({ ...p, soundtrack: { origin: "library", value: v.soundtrack.name + " · " + v.soundtrack.mood } })); setSharedEditing(null); };
+  const sharedUseVideoCreative = (v) => { setShared((p) => ({ ...p, creative: v.creative })); setSharedEditing(null); };
+  const sharedUseVideoVisual = (v) => { setShared((p) => ({ ...p, visual: { format: v.visual.format, duration: v.visual.duration, grade: v.visual.grade, captions: v.visual.captions } })); setSharedEditing(null); };
+
+  const useRecipeForAll = (v) => {
+    setShared({
+      voice: { origin: "video", value: v.voiceover.artist + " — " + v.voiceover.provider, from: v.title },
+      soundtrack: { origin: "library", value: v.soundtrack.name + " · " + v.soundtrack.mood },
+      creative: v.creative,
+      skills: [v.skill.name],
+      visual: { format: v.visual.format, duration: v.visual.duration, grade: v.visual.grade, captions: v.visual.captions },
+    });
+    setSharedEditing(null);
+    setNote("Loaded the full recipe from “" + v.title + "” into the shared panel — applies to every video below.");
+  };
+
+  // In Quick mode, "add winning video" inserts script only (recipe lives in shared panel).
+  const addVideoScriptOnly = (v) => { if (atCap) return; addRowsFrom([{ source: "video", videoId: v.id, title: v.title, text: v.script.text, voice: null, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT }, color: v.color, accent: v.accent, duration: v.duration, format: v.format, badge: v.badge, badgeTone: v.badgeTone, ctr: v.ctr, views: v.views, vtr: v.vtr, category: v.category }]); setNote(""); };
+  const addAllVideosScriptOnly = () => addRowsFrom(VIDEOS.map((v) => ({ source: "video", videoId: v.id, title: v.title, text: v.script.text, voice: null, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT }, color: v.color, accent: v.accent, duration: v.duration, format: v.format, badge: v.badge, badgeTone: v.badgeTone, ctr: v.ctr, views: v.views, vtr: v.vtr, category: v.category })));
 
   const handleScriptsFile = async (file) => {
     if (!file) return;
@@ -1881,8 +1427,94 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
     const m = rows.filter((r) => !r.voice).length;
     if (m > 0) { setNote(m + (m === 1 ? " video still needs a voiceover" : " videos still need a voiceover") + " — open it and use Generate or Upload to resolve " + (m === 1 ? "it." : "them.")); setRows((p) => p.map((r) => (!r.voice ? { ...r, expanded: true } : r))); return; }
     setNote("");
-    setCreated({ rows: rows.map((r) => ({ title: r.title, text: r.text, voice: r.voice, soundtrack: r.soundtrack, creative: r.creative, skills: r.skills, visual: r.visual })) });
+    setCreated({ mode: "per-video", rows: rows.map((r) => ({ title: r.title, text: r.text, voice: r.voice, soundtrack: r.soundtrack, creative: r.creative, skills: r.skills, visual: r.visual })) });
   };
+  const quickGenerate = () => {
+    if (rows.length === 0) return;
+    if (!shared.voice) { setNote("Set a shared voiceover before generating."); return; }
+    setNote("");
+    setCreated({ mode: "quick", shared: { voice: shared.voice, soundtrack: shared.soundtrack, creative: shared.creative, skills: shared.skills, visual: shared.visual }, rows: rows.map((r) => ({ title: r.title, text: r.text })) });
+  };
+  const onGenerate = () => isQuick ? quickGenerate() : bulkGenerate();
+
+  if (created && created.mode === "quick") {
+    const sh = created.shared || {};
+    const voiceText = sh.voice ? sh.voice.value : "—";
+    const voiceTag = sh.voice ? bulkOriginLabel(sh.voice) : null;
+    const voiceTone = sh.voice ? BULK_ORIGIN_TONE[sh.voice.origin] : "neutral";
+    return (
+      <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px 48px" }}>
+        <Stack gap={20} style={{ maxWidth: 760, margin: "0 auto" }}>
+          <Stack gap={10} style={{ alignItems: "center", textAlign: "center" }}>
+            <div style={{ width: 48, height: 48, borderRadius: 999, background: theme.fill.secondary, display: "flex", alignItems: "center", justifyContent: "center" }}><CheckMark color={theme.accent.primary} /></div>
+            <H1>Videos queued</H1>
+            <Text tone="secondary"><span style={{ fontWeight: 600 }}>{created.rows.length}</span> video{created.rows.length === 1 ? "" : "s"} queued from a single shared recipe. (Prototype — nothing rendered.)</Text>
+          </Stack>
+          <Card>
+            <CardHeader trailing={<Pill size="sm" active tone="info">Shared</Pill>}>One recipe applied to every video</CardHeader>
+            <CardBody>
+              <Stack gap={10}>
+                <Row gap={8} align="start">
+                  <span style={{ color: theme.text.tertiary, display: "flex", marginTop: 1, flexShrink: 0 }}><ElIcon type="voiceover" size={13} /></span>
+                  <Text size="small" tone="tertiary" style={{ width: 84, flexShrink: 0 }}>Voiceover</Text>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Row gap={6} align="center">
+                      <Text size="small" style={{ flex: 1, minWidth: 0 }}>{voiceText}</Text>
+                      {voiceTag ? <Pill size="sm" active tone={voiceTone}>{voiceTag}</Pill> : null}
+                    </Row>
+                  </div>
+                </Row>
+                <Row gap={8} align="start">
+                  <span style={{ color: theme.text.tertiary, display: "flex", marginTop: 1, flexShrink: 0 }}><ElIcon type="soundtrack" size={13} /></span>
+                  <Text size="small" tone="tertiary" style={{ width: 84, flexShrink: 0 }}>Soundtrack</Text>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Row gap={6} align="center">
+                      <Text size="small" style={{ flex: 1, minWidth: 0 }}>{sh.soundtrack ? sh.soundtrack.value : "None"}</Text>
+                      {sh.soundtrack ? <Pill size="sm" active tone={sh.soundtrack.origin === "uploaded" ? "info" : "neutral"}>{sh.soundtrack.origin === "uploaded" ? "Uploaded" : "Library"}</Pill> : null}
+                    </Row>
+                  </div>
+                </Row>
+                <Row gap={8} align="start">
+                  <span style={{ color: theme.text.tertiary, display: "flex", marginTop: 1, flexShrink: 0 }}><ElIcon type="creative" size={13} /></span>
+                  <Text size="small" tone="tertiary" style={{ width: 84, flexShrink: 0 }}>Creative</Text>
+                  <Text size="small" style={{ flex: 1, minWidth: 0 }}>{sh.creative || "—"}</Text>
+                </Row>
+                <Row gap={8} align="start">
+                  <span style={{ color: theme.text.tertiary, display: "flex", marginTop: 1, flexShrink: 0 }}><ElIcon type="skill" size={13} /></span>
+                  <Text size="small" tone="tertiary" style={{ width: 84, flexShrink: 0 }}>Skills ({(sh.skills || []).length})</Text>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {(sh.skills || []).length ? <Row gap={6} wrap style={{ rowGap: 6 }}>{sh.skills.map((s) => <Pill key={s} size="sm" active>{s}</Pill>)}</Row> : <Text size="small">—</Text>}
+                  </div>
+                </Row>
+                <Row gap={8} align="start">
+                  <span style={{ color: theme.text.tertiary, display: "flex", marginTop: 1, flexShrink: 0 }}><ElIcon type="visual" size={13} /></span>
+                  <Text size="small" tone="tertiary" style={{ width: 84, flexShrink: 0 }}>Visual</Text>
+                  <Text size="small" style={{ flex: 1, minWidth: 0 }}>{sh.visual ? (sh.visual.format + " · " + sh.visual.duration + " · " + sh.visual.grade + " · " + sh.visual.captions) : "—"}</Text>
+                </Row>
+              </Stack>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardHeader trailing={<Pill size="sm">{created.rows.length} script{created.rows.length === 1 ? "" : "s"}</Pill>}>Scripts</CardHeader>
+            <CardBody>
+              <Stack gap={10}>
+                {created.rows.map((r, i) => (
+                  <Row key={i} gap={8} align="start">
+                    <NumberBadge n={i + 1} />
+                    <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+                      <Text weight="medium" truncate>{r.title || "Untitled video"}</Text>
+                      <Text size="small" tone="tertiary">{r.text || "(no script)"}</Text>
+                    </Stack>
+                  </Row>
+                ))}
+              </Stack>
+            </CardBody>
+          </Card>
+          <Row justify="center"><Button variant="secondary" onClick={() => setCreated(null)}>Back to videos</Button></Row>
+        </Stack>
+      </div>
+    );
+  }
 
   if (created) {
     return (
@@ -1954,8 +1586,207 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
             <Spacer />
             <Pill active={rows.length > 0} tone={counterTone}>{rows.length} / {BULK_MAX}</Pill>
           </Row>
-          <Text tone="secondary">Assemble up to {BULK_MAX} videos in one pass — pull from winning recipes, bulk-upload scripts and voiceovers, then fine-tune each video's full recipe (script, voiceover, soundtrack, creative direction, skills, visual style) in the same Library-style card UI.</Text>
+          <Text tone="secondary">Assemble up to {BULK_MAX} videos in one pass. Pick <span style={{ fontWeight: 600 }}>Quick batch</span> to apply one shared recipe across every script, or <span style={{ fontWeight: 600 }}>Per-video customization</span> to fine-tune each video's full Library-style recipe.</Text>
         </Stack>
+
+        <Card>
+          <CardBody>
+            <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
+              <Stack gap={2} style={{ flex: 1, minWidth: 220 }}>
+                <Text weight="semibold">Mode</Text>
+                <Text size="small" tone="tertiary">{isQuick ? "Quick batch — set one shared recipe; every script renders with it." : "Per-video customization — each video has its own full recipe and Library-style card."}</Text>
+              </Stack>
+              <div style={{ display: "inline-flex", background: theme.fill.secondary, borderRadius: 999, padding: 3, gap: 3 }}>
+                {[["quick", "Quick batch"], ["per-video", "Per-video customization"]].map((entry) => {
+                  const id = entry[0]; const label = entry[1];
+                  return (<button key={id} onClick={() => requestModeSwitch(id)} style={{ border: "none", borderRadius: 999, padding: "7px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", background: mode === id ? "#fff" : "transparent", color: mode === id ? theme.text.primary : theme.text.secondary, boxShadow: mode === id ? "0 1px 2px rgba(0,0,0,0.08)" : "none", transition: "background 120ms ease" }}>{label}</button>);
+                })}
+              </div>
+            </Row>
+          </CardBody>
+        </Card>
+
+        {confirmCopy ? (
+          <Callout tone="info" title="Copy shared recipe to each card?">
+            <Stack gap={8}>
+              <Text size="small">Switching to <span style={{ fontWeight: 600 }}>Per-video customization</span> will keep your existing per-card data. Optionally, copy the shared recipe (voiceover, soundtrack, creative direction, skills, visual style) into each card as a starting point — only fields that aren't already set per-card will be filled in.</Text>
+              <Row gap={8} wrap>
+                <Button variant="primary" onClick={() => applyCopyShared(true)}>Yes, copy shared recipe</Button>
+                <Button variant="secondary" onClick={() => applyCopyShared(false)}>No, keep cards as-is</Button>
+                <Button variant="ghost" onClick={() => setConfirmCopy(false)}>Cancel</Button>
+              </Row>
+            </Stack>
+          </Callout>
+        ) : null}
+
+        {isQuick ? (
+          <Card>
+            <CardHeader trailing={<Pill size="sm" active tone="info">Applies to every video</Pill>}>Shared recipe</CardHeader>
+            <CardBody>
+              <Stack gap={14}>
+                {/* SHARED VOICEOVER */}
+                <Stack gap={8}>
+                  <Row align="center">
+                    <GroupLabel type="voiceover" />
+                    <Spacer />
+                    <Pill size="sm" active={sharedEditing === "voiceover"} onClick={() => setSharedEdit("voiceover")}>{sharedEditing === "voiceover" ? "Done" : "Swap"}</Pill>
+                  </Row>
+                  <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
+                    <span style={{ color: theme.text.tertiary, display: "flex", flexShrink: 0 }}><ElIcon type="voiceover" size={13} /></span>
+                    <Text size="small" truncate style={{ flex: 1, minWidth: 0 }}>{shared.voice ? shared.voice.value : "—"}</Text>
+                    {shared.voice ? <Pill size="sm" active tone={BULK_ORIGIN_TONE[shared.voice.origin]}>{bulkOriginLabel(shared.voice)}</Pill> : null}
+                  </Row>
+                  {sharedEditing === "voiceover" ? (
+                    <Stack gap={10} style={{ background: theme.fill.quaternary, borderRadius: 9, padding: 10 }}>
+                      <Stack gap={6}>
+                        <Text size="small" tone="tertiary" weight="medium">Let the agent decide</Text>
+                        <Row><Button variant="secondary" onClick={sharedAgent}>Agent decides</Button></Row>
+                      </Stack>
+                      <Divider />
+                      <Stack gap={6}>
+                        <Text size="small" tone="tertiary" weight="medium">Pick from the roster</Text>
+                        <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
+                          <Button variant="secondary" onClick={() => sharedAssignRoster(voDraft)}>Assign</Button>
+                        </Row>
+                      </Stack>
+                      <Divider />
+                      <Stack gap={6}>
+                        <Text size="small" tone="tertiary" weight="medium">Upload your own (applied to every script)</Text>
+                        <MockUpload stateKey="bulk.shared.voUpload" currentFile="" placeholder="my-vo-take3.mp3" suggestions={MOCK_VO_FILES} onUpload={sharedUploadVoice} />
+                      </Stack>
+                      <Divider />
+                      <Stack gap={6}>
+                        <Text size="small" tone="tertiary" weight="medium">Use a winning video's voiceover</Text>
+                        <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.voiceover.artist + " — " + v.voiceover.provider} actionLabel="Use" onClick={() => sharedUseVideoVoice(v)} />)}</Stack>
+                      </Stack>
+                    </Stack>
+                  ) : null}
+                </Stack>
+                <Divider />
+
+                {/* SHARED SOUNDTRACK */}
+                <Stack gap={8}>
+                  <Row align="center">
+                    <GroupLabel type="soundtrack" />
+                    <Spacer />
+                    <Pill size="sm" active={sharedEditing === "soundtrack"} onClick={() => setSharedEdit("soundtrack")}>{sharedEditing === "soundtrack" ? "Done" : (shared.soundtrack ? "Swap" : "Pick")}</Pill>
+                  </Row>
+                  {shared.soundtrack ? (
+                    <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
+                      <span style={{ color: theme.text.tertiary, display: "flex", flexShrink: 0 }}><ElIcon type="soundtrack" size={13} /></span>
+                      <Text size="small" truncate style={{ flex: 1, minWidth: 0 }}>{shared.soundtrack.value}</Text>
+                      <Pill size="sm" active tone={shared.soundtrack.origin === "uploaded" ? "info" : "neutral"}>{shared.soundtrack.origin === "uploaded" ? "Uploaded" : "Library"}</Pill>
+                      <Button variant="ghost" onClick={sharedClearSoundtrack}>Remove</Button>
+                    </Row>
+                  ) : (
+                    <Text size="small" tone="tertiary">No soundtrack — leave silent or pick one for every video.</Text>
+                  )}
+                  {sharedEditing === "soundtrack" ? (
+                    <Stack gap={10} style={{ background: theme.fill.quaternary, borderRadius: 9, padding: 10 }}>
+                      <Stack gap={6}>
+                        <Text size="small" tone="tertiary" weight="medium">Pick from the track library</Text>
+                        <Stack gap={6}>{TRACK_LIBRARY.map((t) => <OptionRow key={t.id} title={t.name} subtitle={t.mood} actionLabel="Use" onClick={() => sharedSetSoundtrackLibrary(t)} />)}</Stack>
+                      </Stack>
+                      <Divider />
+                      <Stack gap={6}>
+                        <Text size="small" tone="tertiary" weight="medium">Upload audio</Text>
+                        <MockUpload stateKey="bulk.shared.sndUpload" currentFile="" placeholder="campaign-bed-loop.mp3" suggestions={MOCK_AUDIO_FILES} onUpload={sharedSetSoundtrackUpload} />
+                      </Stack>
+                      <Divider />
+                      <Stack gap={6}>
+                        <Text size="small" tone="tertiary" weight="medium">Use a winning video's soundtrack</Text>
+                        <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.soundtrack.name + " · " + v.soundtrack.mood} actionLabel="Use" onClick={() => sharedUseVideoTrack(v)} />)}</Stack>
+                      </Stack>
+                    </Stack>
+                  ) : null}
+                </Stack>
+                <Divider />
+
+                {/* SHARED CREATIVE */}
+                <Stack gap={8}>
+                  <Row align="center">
+                    <GroupLabel type="creative" />
+                    <Spacer />
+                    <Pill size="sm" active={sharedEditing === "creative"} onClick={() => setSharedEdit("creative")}>{sharedEditing === "creative" ? "Done" : "Swap"}</Pill>
+                  </Row>
+                  <TextArea value={shared.creative || ""} onChange={(val) => setSharedField("creative", val)} rows={3} placeholder="Describe the look and tone applied to every video…" />
+                  {sharedEditing === "creative" ? (
+                    <Stack gap={8} style={{ background: theme.fill.quaternary, borderRadius: 9, padding: 10 }}>
+                      <Text size="small" tone="tertiary" weight="medium">Use a winning video's creative direction</Text>
+                      <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.creative} actionLabel="Use" onClick={() => sharedUseVideoCreative(v)} />)}</Stack>
+                    </Stack>
+                  ) : null}
+                </Stack>
+                <Divider />
+
+                {/* SHARED SKILLS — multi */}
+                <Stack gap={8}>
+                  <Row align="center" gap={8}>
+                    <GroupLabel type="skill" />
+                    <Spacer />
+                    <Text size="small" tone="tertiary">{(shared.skills || []).length} attached</Text>
+                    <Pill size="sm" active={sharedEditing === "skill"} onClick={() => setSharedEdit("skill")}>{sharedEditing === "skill" ? "Done" : "Add skill"}</Pill>
+                  </Row>
+                  {(shared.skills || []).length > 0 ? (
+                    <Row gap={6} wrap style={{ rowGap: 6 }}>
+                      {(shared.skills || []).map((sk) => <Pill key={sk} size="sm" active onClick={() => removeSharedSkill(sk)}>{sk}  ✕</Pill>)}
+                    </Row>
+                  ) : (
+                    <Text size="small" tone="tertiary">No skills attached yet — add one or more from the template library.</Text>
+                  )}
+                  {sharedEditing === "skill" ? (
+                    <Stack gap={8} style={{ background: theme.fill.quaternary, borderRadius: 9, padding: 10 }}>
+                      <Text size="small" tone="tertiary" weight="medium">Pick from the full template library (multi-select — keep adding)</Text>
+                      <Stack gap={6}>
+                        {TEMPLATES.map((tpl) => {
+                          const added = (shared.skills || []).includes(tpl.name);
+                          return <OptionRow key={tpl.name} title={tpl.name} subtitle={tpl.desc} actionLabel={added ? "✓ Added" : "Add"} disabled={added} onClick={() => addSharedSkill(tpl.name)} />;
+                        })}
+                      </Stack>
+                    </Stack>
+                  ) : null}
+                </Stack>
+                <Divider />
+
+                {/* SHARED VISUAL */}
+                <Stack gap={8}>
+                  <Row align="center">
+                    <GroupLabel type="visual" />
+                    <Spacer />
+                    <Pill size="sm" active={sharedEditing === "visual"} onClick={() => setSharedEdit("visual")}>{sharedEditing === "visual" ? "Done" : "Swap"}</Pill>
+                  </Row>
+                  <Row gap={8} wrap style={{ rowGap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 130 }}>
+                      <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Format</Text>
+                      <Select value={(shared.visual || DEFAULT_VISUAL_DRAFT).format} onChange={(val) => setSharedVisualField("format", val)} options={VISUAL_FORMATS.map((o) => ({ value: o, label: o }))} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 130 }}>
+                      <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Duration</Text>
+                      <Select value={(shared.visual || DEFAULT_VISUAL_DRAFT).duration} onChange={(val) => setSharedVisualField("duration", val)} options={VISUAL_DURATIONS.map((o) => ({ value: o, label: o }))} />
+                    </div>
+                  </Row>
+                  <Row gap={8} wrap style={{ rowGap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 130 }}>
+                      <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Color grade</Text>
+                      <Select value={(shared.visual || DEFAULT_VISUAL_DRAFT).grade} onChange={(val) => setSharedVisualField("grade", val)} options={VISUAL_GRADES.map((o) => ({ value: o, label: o }))} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 130 }}>
+                      <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Captions</Text>
+                      <Select value={(shared.visual || DEFAULT_VISUAL_DRAFT).captions} onChange={(val) => setSharedVisualField("captions", val)} options={VISUAL_CAPTIONS.map((o) => ({ value: o, label: o }))} />
+                    </div>
+                  </Row>
+                  {sharedEditing === "visual" ? (
+                    <Stack gap={8} style={{ background: theme.fill.quaternary, borderRadius: 9, padding: 10 }}>
+                      <Text size="small" tone="tertiary" weight="medium">Use a winning video's visual style</Text>
+                      <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.visual.format + " · " + v.visual.duration + " · " + v.visual.grade + " · " + v.visual.captions} actionLabel="Use" onClick={() => sharedUseVideoVisual(v)} />)}</Stack>
+                    </Stack>
+                  ) : null}
+                </Stack>
+              </Stack>
+            </CardBody>
+          </Card>
+        ) : null}
 
         <Card>
           <CardHeader trailing={<Pill size="sm" tone={atCap ? "warning" : "neutral"}>{rows.length}/{BULK_MAX}</Pill>}>Add videos</CardHeader>
@@ -1973,8 +1804,8 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
               {picker === "video" && !atCap ? (
                 <Stack gap={8}>
                   <Row align="center" gap={8} wrap style={{ rowGap: 8 }}>
-                    <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>Pull a winning video to <span style={{ fontWeight: 600 }}>prefill the whole recipe</span> — script, voiceover, soundtrack, creative, skill and visual. Every field stays editable.</Text>
-                    <Button variant="secondary" disabled={atCap} onClick={addAllVideos}>Add all winning videos</Button>
+                    <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>{isQuick ? <React.Fragment>Pull a winning video's <span style={{ fontWeight: 600 }}>script</span> into a row, or copy its full recipe into the shared panel above with <span style={{ fontWeight: 600 }}>Use recipe for all videos</span>.</React.Fragment> : <React.Fragment>Pull a winning video to <span style={{ fontWeight: 600 }}>prefill the whole recipe</span> — script, voiceover, soundtrack, creative, skill and visual. Every field stays editable.</React.Fragment>}</Text>
+                    <Button variant="secondary" disabled={atCap} onClick={isQuick ? addAllVideosScriptOnly : addAllVideos}>{isQuick ? "Add all winning scripts" : "Add all winning videos"}</Button>
                   </Row>
                   <Stack gap={6}>
                     {VIDEOS.map((v) => (
@@ -1992,7 +1823,14 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
                               <Text size="small" tone="secondary" truncate>{v.voiceover.artist} — {v.voiceover.provider} · {v.soundtrack.name} · {v.skill.name}</Text>
                             </Row>
                           </div>
-                          <Button variant="secondary" disabled={atCap} onClick={() => addVideo(v)}>Add full recipe</Button>
+                          {isQuick ? (
+                            <Row gap={6} wrap style={{ rowGap: 6 }}>
+                              <Button variant="secondary" disabled={atCap} onClick={() => addVideoScriptOnly(v)}>Add script</Button>
+                              <Button variant="ghost" onClick={() => useRecipeForAll(v)}>Use recipe for all videos</Button>
+                            </Row>
+                          ) : (
+                            <Button variant="secondary" disabled={atCap} onClick={() => addVideo(v)}>Add full recipe</Button>
+                          )}
                         </Row>
                       </div>
                     ))}
@@ -2032,7 +1870,7 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
               {picker === "upVoice" ? (
                 <Stack gap={8}>
                   <Text size="small" tone="tertiary">Drop one or more audio files. Filenames that match an existing row's title (case-insensitive, ignoring punctuation/spaces/extension) attach the voiceover to that row; unmatched files become new script-blank rows tagged <span style={{ fontWeight: 600 }}>Uploaded</span>.</Text>
-                  <DropZone accept="audio/*,.mp3,.wav,.m4a,.ogg" multiple={true} onFiles={handleAudioFiles} label="Drop audio files or click to browse (multi-select)" hint=".mp3 · .wav · .m4a · .ogg — match by filename to attach to existing rows" />
+                  <DropZone accept="audio/*,.mp3,.wav,.m4a,.ogg" multiple={true} onFiles={handleAudioFiles} label="Drop audio files or click to browse (multi-select)" hint=".mp3 · .wav · .m4a · .ogg — match by filename to attach to existing rows" disabled={isQuick} disabledReason="Multi-audio upload is a Per-video feature — switch to Per-video customization to attach unique voices per video. (The shared voiceover above applies to every script in Quick batch mode; you can also Upload a single voiceover there to use across all videos.)" />
                   {atCap ? <Text size="small" tone="tertiary">Bulk cap reached — only audio that pairs with an existing row will attach; unmatched files will be skipped.</Text> : null}
                 </Stack>
               ) : null}
@@ -2064,16 +1902,18 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
           <Stack gap={10}>
             <Row align="center" gap={8} wrap style={{ rowGap: 8 }}>
               <Text size="small" tone="secondary" weight="medium">{rows.length} {rows.length === 1 ? "video" : "videos"}</Text>
-              {missing > 0 ? <Pill size="sm" active tone="warning">{missing} need{missing === 1 ? "s" : ""} voiceover</Pill> : null}
+              {!isQuick && missing > 0 ? <Pill size="sm" active tone="warning">{missing} need{missing === 1 ? "s" : ""} voiceover</Pill> : null}
+              {isQuick ? <Pill size="sm" active tone="info">Shared recipe applies to all</Pill> : null}
               <Spacer />
               <Button variant="ghost" onClick={() => setAllExpanded(true)}>Expand all</Button>
               <Button variant="ghost" onClick={() => setAllExpanded(false)}>Collapse all</Button>
             </Row>
             {rows.map((r, i) => {
-              const cardBorder = r.expanded ? theme.accent.primary : (!r.voice ? TONE.warning + "88" : theme.stroke.secondary);
+              const showWarn = !isQuick && !r.voice;
+              const cardBorder = r.expanded ? theme.accent.primary : (showWarn ? TONE.warning + "88" : theme.stroke.secondary);
               const editorBoxStyle = { background: theme.fill.quaternary, borderRadius: 9, padding: 10 };
               return (
-                <div key={r.id} style={{ border: "1px solid " + cardBorder, borderRadius: 12, background: !r.voice && !r.expanded ? TONE.warning + "0D" : theme.bg.elevated, padding: 12 }}>
+                <div key={r.id} style={{ border: "1px solid " + cardBorder, borderRadius: 12, background: showWarn && !r.expanded ? TONE.warning + "0D" : theme.bg.elevated, padding: 12 }}>
                   <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
                     <NumberBadge n={i + 1} />
                     <div onClick={() => toggleExpand(r.id)} style={{ flex: 1, minWidth: 200, cursor: "pointer" }}>
@@ -2082,21 +1922,25 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
                           <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="6,4 10,8 6,12" /></svg>
                         </span>
                         <Text weight="medium" truncate>{r.title || "Untitled video"}</Text>
-                        {r.voice && r.voice.origin === "video" ? <Pill size="sm" active tone="info">{bulkOriginLabel(r.voice)}</Pill> : null}
+                        {!isQuick && r.voice && r.voice.origin === "video" ? <Pill size="sm" active tone="info">{bulkOriginLabel(r.voice)}</Pill> : null}
                       </Row>
                       <Text size="small" tone="tertiary" truncate>{r.text || "No script yet"}</Text>
                     </div>
-                    <Row gap={6} align="center" style={{ flexShrink: 0 }}>
-                      {[["voiceover", !!r.voice], ["soundtrack", !!r.soundtrack], ["creative", r.creative.trim().length > 0], ["visual", !!r.visual]].map(([t, on]) => (
-                        <span key={t} title={TYPE_LABEL[t] + (on ? " · set" : " · not set")} style={{ color: on ? theme.accent.primary : theme.text.quaternary, display: "flex" }}><ElIcon type={t} size={13} /></span>
-                      ))}
-                      <Pill size="sm" active={r.skills.length > 0} tone={r.skills.length > 0 ? "info" : "neutral"} leadingContent={<ElIcon type="skill" size={11} />}>{r.skills.length} skill{r.skills.length === 1 ? "" : "s"}</Pill>
-                    </Row>
-                    {r.voice ? (
+                    {isQuick ? (
+                      <Pill size="sm" active tone="info" leadingContent={<ElIcon type="skill" size={11} />}>Uses shared recipe</Pill>
+                    ) : (
+                      <Row gap={6} align="center" style={{ flexShrink: 0 }}>
+                        {[["voiceover", !!r.voice], ["soundtrack", !!r.soundtrack], ["creative", r.creative.trim().length > 0], ["visual", !!r.visual]].map(([t, on]) => (
+                          <span key={t} title={TYPE_LABEL[t] + (on ? " · set" : " · not set")} style={{ color: on ? theme.accent.primary : theme.text.quaternary, display: "flex" }}><ElIcon type={t} size={13} /></span>
+                        ))}
+                        <Pill size="sm" active={r.skills.length > 0} tone={r.skills.length > 0 ? "info" : "neutral"} leadingContent={<ElIcon type="skill" size={11} />}>{r.skills.length} skill{r.skills.length === 1 ? "" : "s"}</Pill>
+                      </Row>
+                    )}
+                    {!isQuick && (r.voice ? (
                       <Pill size="sm" active tone={r.voice.status === "generating" ? "neutral" : BULK_ORIGIN_TONE[r.voice.origin]}>{r.voice.status === "generating" ? "Generating…" : bulkOriginLabel(r.voice)}</Pill>
                     ) : (
                       <Pill size="sm" active tone="warning" leadingContent={<ElIcon type="voiceover" size={11} />}>Needs voiceover</Pill>
-                    )}
+                    ))}
                     <Button variant="ghost" onClick={() => toggleExpand(r.id)}>{r.expanded ? "Close" : "Edit"}</Button>
                     <IconButton title="Remove video" size="sm" onClick={() => removeRow(r.id)}>✕</IconButton>
                   </Row>
@@ -2122,12 +1966,16 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
                         {r.videoId ? <Divider /> : null}
 
                         <Row align="center">
-                          <Text size="small" tone="secondary" weight="medium">Recipe</Text>
+                          <Text size="small" tone="secondary" weight="medium">{isQuick ? "Script" : "Recipe"}</Text>
                           <Spacer />
-                          <Text size="small" tone="tertiary">6 ingredients</Text>
+                          <Text size="small" tone="tertiary">{isQuick ? "Uses shared recipe for everything else" : "6 ingredients"}</Text>
                         </Row>
 
-                        <ScriptVoicePlayer row={r} />
+                        {isQuick ? (
+                          <Callout tone="info">This card uses the <span style={{ fontWeight: 600 }}>Shared recipe</span> above for voiceover, soundtrack, creative direction, skills, and visual style. Switch to <span style={{ fontWeight: 600 }}>Per-video customization</span> to override any of those for this script.</Callout>
+                        ) : null}
+
+                        <ScriptVoicePlayer row={isQuick ? { ...r, voice: shared.voice } : r} />
 
                         {/* SCRIPT */}
                         <Stack gap={8}>
@@ -2149,6 +1997,7 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
                           ) : null}
                         </Stack>
 
+                        {!isQuick ? (<React.Fragment>
                         <Divider />
 
                         {/* VOICEOVER */}
@@ -2325,6 +2174,7 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
                             </Stack>
                           ) : null}
                         </Stack>
+                        </React.Fragment>) : null}
 
                       </Stack>
                     </div>
@@ -2340,12 +2190,12 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
             <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
               <Stack gap={2}>
                 <Text weight="semibold">Generate videos</Text>
-                <Text size="small" tone="tertiary">{rows.length} {rows.length === 1 ? "video" : "videos"} · {missing} still need a voiceover</Text>
+                <Text size="small" tone="tertiary">{rows.length} {rows.length === 1 ? "video" : "videos"} · {isQuick ? "shared recipe applied to every script" : (missing + " still need a voiceover")}</Text>
               </Stack>
               <Spacer />
-              {rows.length > 0 && missing > 0 ? <Pill size="sm" active tone="warning">{missing} unresolved</Pill> : null}
+              {!isQuick && rows.length > 0 && missing > 0 ? <Pill size="sm" active tone="warning">{missing} unresolved</Pill> : null}
               {rows.length > 0 ? <Button variant="ghost" onClick={clearAll}>Clear all</Button> : null}
-              <Button variant="primary" disabled={rows.length === 0} onClick={bulkGenerate}>Generate {rows.length} video{rows.length === 1 ? "" : "s"}</Button>
+              <Button variant="primary" disabled={rows.length === 0} onClick={onGenerate}>Generate {rows.length} video{rows.length === 1 ? "" : "s"}</Button>
             </Row>
           </CardBody>
         </Card>
@@ -2360,7 +2210,7 @@ function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
 function App() {
   const [tab, setTab] = useState("library");
   const [pendingBulkSkill, setPendingBulkSkill] = useState(null);
-  const tabs = [["library", "Winning Videos Library"], ["batch", "New Batch Flow"], ["bulk", "Bulk Studio"], ["skills", "Skills"]];
+  const tabs = [["library", "Winning Videos Library"], ["bulk", "Bulk Studio"], ["skills", "Skills"]];
   return (
     <div style={{ minHeight: "100vh", background: THEME.bg.editor }}>
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.78)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + THEME.stroke.secondary, padding: "10px 20px", display: "flex", alignItems: "center", gap: 16 }}>
@@ -2373,7 +2223,6 @@ function App() {
         </div>
       </div>
       <div style={{ display: tab === "library" ? "block" : "none" }}><TemplateLibrary /></div>
-      <div style={{ display: tab === "batch" ? "block" : "none" }}><NewBatchFlow /></div>
       <div style={{ display: tab === "bulk" ? "block" : "none" }}><BulkVoiceovers pendingSkill={pendingBulkSkill} clearPendingSkill={() => setPendingBulkSkill(null)} /></div>
       <div style={{ display: tab === "skills" ? "block" : "none" }}><SkillsLibrary onUseSkill={(name) => { setPendingBulkSkill(name); setTab("bulk"); }} /></div>
     </div>

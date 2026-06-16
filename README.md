@@ -10,19 +10,29 @@ Today, starting a new batch means filling out one long form from scratch every s
 — scripts, voiceover, soundtrack, creative direction, visual style, and skills/templates —
 with no easy way to reuse what worked in a high-performing past ad. This prototype shows an
 alternative: an Apple-clean, skimmable flow where you can **cherry-pick proven ingredients**
-or step through a **guided wizard** instead of wrestling with a cramped form.
+inside a single Bulk Studio that handles both quick batches and per-video fine-tuning,
+instead of wrestling with a cramped form.
 
 ## What's new in v2
 
-A new **Skills** tab (the fourth tab) is a browser for the full template library — every
-skill the bulk and new-batch flows can layer onto a video. Each skill renders as a
-Library-style card with a flat poster preview, the kebab-id name (e.g. `front-porch-positive`),
-a one-sentence description, an inferred tone (Positive / Contrast / Persuasion), and chips
-listing which winning videos use it. A **Use in new batch** button on each card jumps to
-**Bulk Studio** and creates a fresh row pre-attached with that skill in its
-multi-skill chip set. The header has a stat strip (skills in library, used by winning
-videos, winning videos covered) and filter pills (All / Used / Unused / Positive /
-Contrast / Persuasion).
+The standalone **New Batch Flow** wizard tab has been removed and folded into **Bulk Studio**
+via a top-of-tab **Mode toggle**. Bulk Studio now offers two modes: **Quick batch** (one
+shared recipe — voiceover, soundtrack, creative direction, multi-skill stack, visual style —
+applied to every script in the batch, with per-row cards collapsed to a script-only editor)
+and **Per-video customization** (the existing Library-style expandable cards where each
+video has its own full six-ingredient recipe). Mode is persisted; switching from Quick →
+Per-video preserves your per-card data and offers a "Copy shared recipe to each card?"
+prompt that fills only fields not already set per-card. The new IA is **Library → Bulk
+Studio → Skills**.
+
+A **Skills** tab is a browser for the full template library — every skill the bulk flow can
+layer onto a video. Each skill renders as a Library-style card with a flat poster preview,
+the kebab-id name (e.g. `front-porch-positive`), a one-sentence description, an inferred
+tone (Positive / Contrast / Persuasion), and chips listing which winning videos use it. A
+**Use in new batch** button on each card jumps to **Bulk Studio** (Per-video mode) and
+creates a fresh row pre-attached with that skill in its multi-skill chip set. The header
+has a stat strip (skills in library, used by winning videos, winning videos covered) and
+filter pills (All / Used / Unused / Positive / Contrast / Persuasion).
 
 In Bulk Studio, **each expanded video card now matches the Winning Videos library card
 visually**: video-sourced rows render with the flat-color **poster + play glyph + duration
@@ -42,8 +52,9 @@ English fallback). The button is disabled with the tooltip "Add or generate a vo
 preview" until a voice is set, and the card honestly notes "Audio preview unavailable in this
 browser" if `speechSynthesis` is missing. Audio is cleaned up on stop, row removal, or unmount.
 
-A third tab — **Bulk Studio** — lets you build a batch of up to **50 videos** at once,
-where **each video expands into the same six-ingredient editor as a Winning Videos card**.
+**Bulk Studio** lets you build a batch of up to **50 videos** at once. In Per-video mode,
+**each video expands into the same six-ingredient editor as a Winning Videos card**; in
+Quick batch mode, every script renders with one shared recipe.
 Collapsed, a card shows a compact summary (index, title, voiceover status, ingredient
 indicators, and a **skills: N** count); expand it and you get the familiar Library-style rows
 for **Script, Voiceover, Soundtrack, Creative Direction, Skill/Template, and Visual Style**,
@@ -63,11 +74,11 @@ punctuation/spaces/extension) — unmatched audio becomes new script-blank rows 
 **Roster / Generate / Upload / From a winning video**, with origin tags. The primary CTA —
 **"Generate N videos"** — validates every card has a voiceover (expanding and pointing you
 to unresolved ones) and confirms the full per-video recipe. See
-[Bulk Studio](#3-bulk-studio) below for details.
+[Bulk Studio](#2-bulk-studio) below for details.
 
 ## What you can do in it
 
-Open it and use the **tab switcher** at the top to move between four ideas:
+Open it and use the **tab switcher** at the top to move between three ideas:
 
 ### 1. Winning Videos Library
 Browse past high-performing ads as a gallery. Each card shows its performance stats
@@ -84,23 +95,38 @@ Voiceover artist, Soundtrack, Creative Direction, Skill/Template, and Visual Sty
   Roster / Library / from a specific video* — so the recipe stays clear.
 - Finish with **Create Batch** to see a confirmation summary of the assembled recipe.
 
-### 2. New Batch Flow
-A guided **8-step wizard** that replaces the cramped single form: Start → Project → Scripts
-→ Voice & Audio → Creative → Visual → Skills → Review.
+### 2. Bulk Studio
+*(new in v2 — replaces the standalone New Batch Flow tab)* A workspace for building a batch
+of up to 50 videos at once. A top-of-tab **Mode toggle** picks between **Quick batch** (one
+shared recipe applied to every script) and **Per-video customization** (each video has its
+own full six-ingredient recipe in the same Library-style card UI). Pull from winning
+recipes, bulk-upload scripts and voiceovers, and either share one recipe across the batch
+or fine-tune each video individually.
 
-- **Prefill from a "winning recipe"** to start from a proven setup, or start from scratch
-  with **smart defaults** already filled in.
-- A **live recipe summary** updates as you go, and a **final review** confirms everything
-  before you create the batch.
-- Voice & Audio supports *Agent decides / pick from a roster / upload your own*, and the
-  backing track supports *pick from the library / upload audio* — all tagged by source.
-
-### 3. Bulk Studio
-*(new in v2)* A workspace for building a batch of videos at once, where **each video expands
-into the same six-ingredient editor as a Winning Videos card** — not just a script + voiceover
-row. Pull from winning recipes, bulk-upload scripts and voiceovers, and fine-tune each
-video's full recipe (script, voiceover, soundtrack, creative direction, skills, visual
-style) in one place.
+#### Modes
+- **Quick batch** — at the top of the tab, a **Shared recipe** panel sets one Voiceover
+  (Agent decides / Roster / Upload / from a winning video), one Soundtrack (Library /
+  Upload / from a winning video / None), one Creative Direction textarea, a multi-skill
+  stack, and one Visual Style configurator (format / duration / grade / captions). Per-row
+  cards collapse to a **script-only editor** (title + script text + the Play preview, which
+  read-alouds via the *shared* voiceover); the per-row Voiceover / Soundtrack / Creative /
+  Skill / Visual rows are hidden and each card carries a small "Uses shared recipe" tag.
+  Adding a winning video offers an **"Add script"** action *and* a one-click **"Use recipe
+  for all videos"** that copies its full recipe into the shared panel. Multi-audio
+  voiceover upload is disabled in Quick batch with a tooltip pointing back to Per-video
+  customization. The "Generate N videos" confirmation shows the shared recipe once + the
+  list of scripts.
+- **Per-video customization** — the existing flow. Each card expands into the full Winning
+  Videos card UI: poster + performance badge + duration/format chips + CTR / Views /
+  Watch-through stat strip (for video-prefilled rows; library/custom/upload/skill-prefilled
+  cards omit poster/badges/stats), Play preview, and the six ingredient rows with
+  Swap/Pick/Add-skill chip pickers (multi-skill, with the "skills: N" count chip on the
+  collapsed card). The "Generate N videos" confirmation lists every video's full recipe.
+- **Switching modes** preserves data. Per-video → Quick keeps your per-card data hidden
+  while you work in Quick mode; Quick → Per-video shows a confirm dialog **"Copy shared
+  recipe to each card?"** with Yes / No / Cancel — Yes fills any per-card field that's
+  still empty (voice, soundtrack, creative, skills, visual), No keeps cards as-is, Cancel
+  aborts the switch.
 
 - **Build up to 50 videos.** A running **N / 50** counter is shown, and "add" is disabled with a
   gentle note once you hit the cap. **Expand all / Collapse all** keeps the list scannable, and
@@ -162,17 +188,17 @@ style) in one place.
   video's full recipe — script ↔ voiceover (+origin) ↔ soundtrack ↔ creative ↔ **all attached
   skills as chips** ↔ visual. *(Prototype — nothing is actually rendered.)*
 
-### 4. Skills
-*(new)* A browser for the full template library — every skill the bulk and new-batch flows
-can layer onto a video. Each skill renders as a Library-style card:
+### 3. Skills
+*(new in v2)* A browser for the full template library — every skill the bulk flow can layer
+onto a video. Each skill renders as a Library-style card:
 
 - **Flat-color poster preview** seeded from the skill's id (consistent visual signature).
 - **Kebab-id name** (e.g. `front-porch-positive`) plus a one-sentence description, an
   inferred **tone tag** (Positive / Contrast / Persuasion), and a "Used in N winning videos"
   count with chip-listed video titles colored by their performance badge.
-- **Use in new batch** button — jumps to **Bulk Studio** and creates a fresh row pre-
-  attached with that skill in its multi-skill chip set, expanded and ready to fill in script
-  and voiceover.
+- **Use in new batch** button — jumps to **Bulk Studio** (Per-video mode is the default for
+  freshly-added skill rows) and creates a fresh row pre-attached with that skill in its
+  multi-skill chip set, expanded and ready to fill in script and voiceover.
 - The header shows a stat strip (skills in library, used by winning videos, winning videos
   covered) and filter pills: **All / Used / Unused / Positive / Contrast / Persuasion**.
 
