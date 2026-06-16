@@ -1424,11 +1424,255 @@ function NewBatchFlow() {
 }
 
 /* ================================================================
-   App shell — top tab switcher between the two prototypes
+   PROTOTYPE 3 — Bulk Voiceovers
+   ================================================================ */
+
+const LIBRARY_SCRIPTS = VIDEOS.map((v) => ({ id: v.script.id, title: v.title, text: v.script.text }));
+const VO_OPTIONS = VO_ROSTER.map((o) => ({ value: o.id, label: o.name + " — " + o.provider + " · " + o.tone }));
+const BULK_MAX = 50;
+function voById(id) { return VO_ROSTER.find((o) => o.id === id); }
+function rosterVoiceValue(o) { return o.name + " — " + o.provider + " · " + o.tone; }
+const BULK_ORIGIN_TONE = { roster: "neutral", generated: "success", uploaded: "info" };
+const BULK_ORIGIN_LABEL = { roster: "Roster", generated: "Generated", uploaded: "Uploaded" };
+
+function NumberBadge({ n }) {
+  const theme = useHostTheme();
+  return (
+    <div style={{ width: 24, height: 24, borderRadius: 999, background: theme.fill.secondary, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: theme.text.secondary, flexShrink: 0 }}>{n}</div>
+  );
+}
+
+function BulkVoiceovers() {
+  const theme = useHostTheme();
+  const [rows, setRows] = useCanvasState("bulk.rows", []);
+  const [editor, setEditor] = useCanvasState("bulk.editor", null);
+  const [voDraft, setVoDraft] = useCanvasState("bulk.voDraft", VO_ROSTER[0].id);
+  const [upDraft, setUpDraft] = useCanvasState("bulk.upDraft", "");
+  const [picker, setPicker] = useCanvasState("bulk.picker", "");
+  const [custom, setCustom] = useCanvasState("bulk.custom", "");
+  const [note, setNote] = useCanvasState("bulk.note", "");
+  const [created, setCreated] = useCanvasState("bulk.created", null);
+
+  const atCap = rows.length >= BULK_MAX;
+  const missing = rows.filter((r) => !r.voice).length;
+
+  const addRowsFrom = (items) => setRows((p) => { const room = BULK_MAX - p.length; if (room <= 0) return p; const adds = items.slice(0, room).map((s) => ({ id: makeUid(), title: s.title, text: s.text, voice: null })); return [...p, ...adds]; });
+  const addLibrary = (s) => { if (!atCap) { addRowsFrom([s]); setNote(""); } };
+  const addAllLibrary = () => { addRowsFrom(LIBRARY_SCRIPTS); setNote(""); };
+  const addCustom = () => { const t = custom.trim(); if (!t || atCap) return; addRowsFrom([{ title: "Custom script", text: t }]); setCustom(""); setNote(""); };
+  const removeRow = (id) => { setRows((p) => p.filter((r) => r.id !== id)); setEditor((e) => (e && e.rowId === id ? null : e)); };
+  const clearAll = () => { setRows([]); setEditor(null); setNote(""); };
+
+  const openEditor = (rowId, mode) => { setEditor({ rowId, mode }); if (mode !== "upload") setVoDraft(VO_ROSTER[0].id); if (mode === "upload") setUpDraft(""); };
+  const assignRoster = (id, voId) => { const o = voById(voId); if (!o) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "roster", value: rosterVoiceValue(o) } } : r))); setEditor(null); };
+  const startGenerate = (id) => {
+    const o = voById(voDraft) || VO_ROSTER[0];
+    setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "generated", value: o.name + " — " + o.provider + " (TTS)", status: "generating" } } : r)));
+    setEditor(null);
+    setTimeout(() => { setRows((p) => p.map((r) => (r.id === id && r.voice && r.voice.status === "generating" ? { ...r, voice: { origin: "generated", value: r.voice.value, status: "done" } } : r))); }, 900);
+  };
+  const uploadVoice = (id, file) => { const f = (file || "").trim(); if (!f) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "uploaded", value: f } } : r))); setEditor(null); setUpDraft(""); };
+  const clearVoice = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: null } : r)));
+
+  const bulkGenerate = () => {
+    if (rows.length === 0) return;
+    const m = rows.filter((r) => !r.voice).length;
+    if (m > 0) { setNote(m + (m === 1 ? " row still needs a voiceover" : " rows still need a voiceover") + " — use Generate or Upload to resolve " + (m === 1 ? "it." : "them.")); return; }
+    setNote("");
+    setCreated({ rows: rows.map((r) => ({ title: r.title, text: r.text, voice: r.voice })) });
+  };
+
+  if (created) {
+    return (
+      <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px 48px" }}>
+        <Stack gap={20} style={{ maxWidth: 720, margin: "0 auto" }}>
+          <Stack gap={10} style={{ alignItems: "center", textAlign: "center" }}>
+            <div style={{ width: 48, height: 48, borderRadius: 999, background: theme.fill.secondary, display: "flex", alignItems: "center", justifyContent: "center" }}><CheckMark color={theme.accent.primary} /></div>
+            <H1>Voiceovers generated</H1>
+            <Text tone="secondary"><span style={{ fontWeight: 600 }}>{created.rows.length}</span> final voiceover{created.rows.length === 1 ? "" : "s"} ready to attach to your scripts. (Prototype — no audio rendered.)</Text>
+          </Stack>
+          <Card>
+            <CardHeader trailing={<Pill size="sm" tone="success">{created.rows.length} ready</Pill>}>Final voiceovers</CardHeader>
+            <CardBody>
+              <Stack gap={10}>
+                {created.rows.map((r, i) => (
+                  <Row key={i} gap={10} align="start">
+                    <NumberBadge n={i + 1} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Text size="small" weight="medium" truncate>{r.title}</Text>
+                      <Text size="small" tone="tertiary" truncate>{r.text}</Text>
+                      <Row gap={6} align="center" style={{ marginTop: 3 }}>
+                        <span style={{ color: theme.text.tertiary, display: "flex" }}><ElIcon type="voiceover" size={13} /></span>
+                        <Text size="small" truncate style={{ minWidth: 0 }}>{r.voice.value}</Text>
+                        <Pill size="sm" active tone={BULK_ORIGIN_TONE[r.voice.origin]}>{BULK_ORIGIN_LABEL[r.voice.origin]}</Pill>
+                      </Row>
+                    </div>
+                  </Row>
+                ))}
+              </Stack>
+            </CardBody>
+          </Card>
+          <Row justify="center"><Button variant="secondary" onClick={() => setCreated(null)}>Back to list</Button></Row>
+        </Stack>
+      </div>
+    );
+  }
+
+  const counterTone = atCap ? "warning" : rows.length === 0 ? "neutral" : missing > 0 ? "info" : "success";
+
+  return (
+    <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px 64px" }}>
+      <Stack gap={20} style={{ maxWidth: 980, margin: "0 auto" }}>
+        <Stack gap={6}>
+          <Row align="center" wrap gap={12}>
+            <H1>Bulk Voiceovers</H1>
+            <Spacer />
+            <Pill active={rows.length > 0} tone={counterTone}>{rows.length} / {BULK_MAX}</Pill>
+          </Row>
+          <Text tone="secondary">Pair up to {BULK_MAX} scripts with voiceover artists and generate the final voiceovers in one pass. Any row missing a voice can be generated with TTS or uploaded.</Text>
+        </Stack>
+
+        <Card>
+          <CardHeader trailing={<Pill size="sm" tone={atCap ? "warning" : "neutral"}>{rows.length}/{BULK_MAX}</Pill>}>Add scripts</CardHeader>
+          <CardBody>
+            <Stack gap={12}>
+              <Row gap={8} wrap style={{ rowGap: 8 }}>
+                <Pill active={picker === "library"} onClick={() => setPicker(picker === "library" ? "" : "library")}>From library</Pill>
+                <Pill active={picker === "custom"} onClick={() => setPicker(picker === "custom" ? "" : "custom")}>Custom script</Pill>
+                <Spacer />
+                <Button variant="secondary" disabled={atCap} onClick={addAllLibrary}>Add all library scripts</Button>
+              </Row>
+              {atCap ? <Callout tone="warning">You've reached the {BULK_MAX}-row maximum. Remove a row to add another.</Callout> : null}
+              {picker === "library" && !atCap ? (
+                <Stack gap={6}>
+                  {LIBRARY_SCRIPTS.map((s) => <OptionRow key={s.id} title={s.title} subtitle={s.text} actionLabel="Add" onClick={() => addLibrary(s)} />)}
+                </Stack>
+              ) : null}
+              {picker === "custom" && !atCap ? (
+                <Stack gap={8}>
+                  <TextArea value={custom} onChange={setCustom} rows={3} placeholder="Write or paste a script to voice…" />
+                  <Row gap={8}><Button variant="primary" disabled={!custom.trim()} onClick={addCustom}>Add script</Button></Row>
+                </Stack>
+              ) : null}
+            </Stack>
+          </CardBody>
+        </Card>
+
+        {note ? (
+          <Callout tone="warning">
+            <Row align="center" gap={8}>
+              <Text size="small" style={{ flex: 1 }}>{note}</Text>
+              <IconButton title="Dismiss" size="sm" onClick={() => setNote("")}>✕</IconButton>
+            </Row>
+          </Callout>
+        ) : null}
+
+        {rows.length === 0 ? (
+          <Callout tone="neutral" title="No scripts yet">Add scripts from the library or write your own above. Each row pairs a script with a voiceover artist; any row without one can be generated or uploaded.</Callout>
+        ) : (
+          <Stack gap={10}>
+            <Row align="center">
+              <Text size="small" tone="secondary" weight="medium">{rows.length} {rows.length === 1 ? "row" : "rows"}</Text>
+              {missing > 0 ? (<React.Fragment><Spacer /><Pill size="sm" active tone="warning">{missing} need{missing === 1 ? "s" : ""} voiceover</Pill></React.Fragment>) : null}
+            </Row>
+            {rows.map((r, i) => {
+              const ed = editor && editor.rowId === r.id ? editor.mode : null;
+              const v = r.voice;
+              return (
+                <div key={r.id} style={{ border: "1px solid " + (v ? theme.stroke.secondary : TONE.warning + "88"), borderRadius: 12, background: v ? theme.bg.elevated : TONE.warning + "0D", padding: 12 }}>
+                  <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
+                    <NumberBadge n={i + 1} />
+                    <div style={{ flex: 1, minWidth: 180 }}>
+                      <Row gap={6} align="center">
+                        <span style={{ color: theme.text.tertiary, display: "flex", flexShrink: 0 }}><ElIcon type="script" size={13} /></span>
+                        <Text weight="medium" truncate>{r.title}</Text>
+                      </Row>
+                      <Text size="small" tone="tertiary" truncate>{r.text}</Text>
+                    </div>
+                    {v ? (
+                      <Row gap={8} align="center" justify="flex-end" style={{ flexShrink: 0 }}>
+                        <Stack gap={2} style={{ alignItems: "flex-end", minWidth: 0 }}>
+                          <Text size="small" truncate style={{ textAlign: "right", maxWidth: 220 }}>{v.value}</Text>
+                          {v.status === "generating" ? <Pill size="sm" tone="neutral">Generating…</Pill> : <Pill size="sm" active tone={BULK_ORIGIN_TONE[v.origin]}>{BULK_ORIGIN_LABEL[v.origin]}</Pill>}
+                        </Stack>
+                        <Button variant="ghost" onClick={() => openEditor(r.id, "reassign")}>Change</Button>
+                      </Row>
+                    ) : (
+                      <Row gap={8} align="center" justify="flex-end" wrap style={{ rowGap: 6, flexShrink: 0 }}>
+                        <Pill size="sm" active tone="warning" leadingContent={<ElIcon type="voiceover" size={11} />}>Needs voiceover</Pill>
+                        <Button variant="secondary" onClick={() => openEditor(r.id, "generate")}>Generate</Button>
+                        <Button variant="secondary" onClick={() => openEditor(r.id, "upload")}>Upload</Button>
+                      </Row>
+                    )}
+                    <IconButton title="Remove row" size="sm" onClick={() => removeRow(r.id)}>✕</IconButton>
+                  </Row>
+
+                  {ed ? (
+                    <div style={{ marginTop: 12, borderTop: "1px solid " + theme.stroke.tertiary, paddingTop: 12 }}>
+                      {ed === "generate" ? (
+                        <Stack gap={8}>
+                          <Text size="small" tone="tertiary" weight="medium">Generate a voiceover with TTS — choose a voice</Text>
+                          <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
+                            <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
+                            <Button variant="primary" onClick={() => startGenerate(r.id)}>Generate voiceover</Button>
+                            <Button variant="ghost" onClick={() => setEditor(null)}>Cancel</Button>
+                          </Row>
+                        </Stack>
+                      ) : ed === "upload" ? (
+                        <Stack gap={8}>
+                          <Text size="small" tone="tertiary" weight="medium">Upload a voiceover file</Text>
+                          <Row gap={8} align="center">
+                            <div style={{ flex: 1 }}><TextInput value={upDraft} onChange={setUpDraft} placeholder="my-vo-take3.mp3" /></div>
+                            <Button variant="secondary" disabled={!upDraft.trim()} onClick={() => uploadVoice(r.id, upDraft)}>Upload</Button>
+                            <Button variant="ghost" onClick={() => setEditor(null)}>Cancel</Button>
+                          </Row>
+                          <Row gap={6} wrap style={{ rowGap: 6 }}>{MOCK_VO_FILES.map((f) => <Pill key={f} size="sm" onClick={() => uploadVoice(r.id, f)}>{f}</Pill>)}</Row>
+                        </Stack>
+                      ) : (
+                        <Stack gap={8}>
+                          <Text size="small" tone="tertiary" weight="medium">Reassign voiceover</Text>
+                          <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
+                            <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
+                            <Button variant="primary" onClick={() => assignRoster(r.id, voDraft)}>Assign from roster</Button>
+                            <Button variant="secondary" onClick={() => openEditor(r.id, "generate")}>Generate</Button>
+                            <Button variant="secondary" onClick={() => openEditor(r.id, "upload")}>Upload</Button>
+                          </Row>
+                          <Row><Button variant="ghost" onClick={() => { clearVoice(r.id); setEditor(null); }}>Clear voiceover</Button></Row>
+                        </Stack>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </Stack>
+        )}
+
+        <Card>
+          <CardBody>
+            <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
+              <Stack gap={2}>
+                <Text weight="semibold">Generate final voiceovers</Text>
+                <Text size="small" tone="tertiary">{rows.length} {rows.length === 1 ? "row" : "rows"} · {missing} still need a voice</Text>
+              </Stack>
+              <Spacer />
+              {rows.length > 0 && missing > 0 ? <Pill size="sm" active tone="warning">{missing} unresolved</Pill> : null}
+              {rows.length > 0 ? <Button variant="ghost" onClick={clearAll}>Clear all</Button> : null}
+              <Button variant="primary" disabled={rows.length === 0} onClick={bulkGenerate}>Generate {rows.length} final voiceover{rows.length === 1 ? "" : "s"}</Button>
+            </Row>
+          </CardBody>
+        </Card>
+      </Stack>
+    </div>
+  );
+}
+
+/* ================================================================
+   App shell — top tab switcher between the prototypes
    ================================================================ */
 function App() {
   const [tab, setTab] = useState("library");
-  const tabs = [["library", "Winning Videos Library"], ["batch", "New Batch Flow"]];
+  const tabs = [["library", "Winning Videos Library"], ["batch", "New Batch Flow"], ["bulk", "Bulk Voiceovers"]];
   return (
     <div style={{ minHeight: "100vh", background: THEME.bg.editor }}>
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.78)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + THEME.stroke.secondary, padding: "10px 20px", display: "flex", alignItems: "center", gap: 16 }}>
@@ -1442,6 +1686,7 @@ function App() {
       </div>
       <div style={{ display: tab === "library" ? "block" : "none" }}><TemplateLibrary /></div>
       <div style={{ display: tab === "batch" ? "block" : "none" }}><NewBatchFlow /></div>
+      <div style={{ display: tab === "bulk" ? "block" : "none" }}><BulkVoiceovers /></div>
     </div>
   );
 }

@@ -12,9 +12,20 @@ with no easy way to reuse what worked in a high-performing past ad. This prototy
 alternative: an Apple-clean, skimmable flow where you can **cherry-pick proven ingredients**
 or step through a **guided wizard** instead of wrestling with a cramped form.
 
+## What's new in v2
+
+A third tab — **Bulk Voiceovers** — lets you generate the final voiceovers for many scripts
+at once. You assemble a list (up to **50 rows**), pairing each script with a voiceover artist,
+then hit **"Generate N final voiceovers"** to produce them in one pass. Any row that has a
+script but **no voice assigned** is flagged **"Needs voiceover"** and prompts you to resolve it
+two ways: **Generate** (mock TTS — pick a voice from the roster, watch it go *generating →
+generated*) or **Upload** (confirm a filename / pick a mock file). Resolved rows show the voice
+with an origin tag (**Roster / Generated / Uploaded**), and the bulk action won't run until
+every row has a voice. See [Bulk Voiceovers](#3-bulk-voiceovers) below for details.
+
 ## What you can do in it
 
-Open it and use the **tab switcher** at the top to move between two ideas:
+Open it and use the **tab switcher** at the top to move between three ideas:
 
 ### 1. Winning Videos Library
 Browse past high-performing ads as a gallery. Each card shows its performance stats
@@ -41,6 +52,23 @@ A guided **8-step wizard** that replaces the cramped single form: Start → Proj
   before you create the batch.
 - Voice & Audio supports *Agent decides / pick from a roster / upload your own*, and the
   backing track supports *pick from the library / upload audio* — all tagged by source.
+
+### 3. Bulk Voiceovers
+*(new in v2)* A focused workspace for pairing many scripts with voiceover artists and
+generating the final voiceovers in bulk.
+
+- **Build a list of up to 50 rows.** A running **N / 50** counter is shown, and "add" is
+  disabled with a gentle note once you hit the cap.
+- **Populate rows fast:** add individual scripts **from the library**, write a **custom
+  script**, or **bulk-add all library scripts** at once. Remove any row, and assign or
+  reassign its voiceover artist from the **6-artist roster** at any time.
+- **Missing-voiceover prompt:** any row without a voice is clearly flagged **"Needs
+  voiceover"** and offers two actions — **Generate** (simulated TTS using a roster voice) or
+  **Upload** (mock file). Once resolved, the row shows the voice and its **Roster / Generated /
+  Uploaded** origin tag.
+- **Bulk generate:** **"Generate N final voiceovers"** validates that no rows are still
+  missing a voice (pointing you to resolve them if so), then shows a confirmation summary
+  listing every script ↔ voiceover ↔ origin. *(Prototype — no audio is actually rendered.)*
 
 ## Template Skills referenced
 
