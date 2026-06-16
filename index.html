@@ -1281,6 +1281,95 @@ function DropZone({ accept, multiple, onFiles, label, hint, disabled, disabledRe
   );
 }
 
+function SkillStageRow({ name, desc, sourceTag, isAdded, isStaged, onToggle }) {
+  const theme = useHostTheme();
+  const checked = isAdded || isStaged;
+  const boxBg = isAdded ? theme.fill.tertiary : isStaged ? theme.accent.primary + "0D" : theme.bg.elevated;
+  const borderColor = isAdded ? theme.stroke.tertiary : isStaged ? theme.accent.primary : theme.stroke.secondary;
+  return (
+    <div
+      onClick={() => { if (!isAdded) onToggle(); }}
+      role="button"
+      tabIndex={isAdded ? -1 : 0}
+      style={{ border: "1px solid " + borderColor, background: boxBg, borderRadius: 10, padding: "8px 10px", cursor: isAdded ? "default" : "pointer", transition: "border-color 120ms ease, background 120ms ease", opacity: isAdded ? 0.85 : 1 }}
+    >
+      <Row gap={10} align="center">
+        <div style={{ width: 18, height: 18, borderRadius: 5, background: checked ? theme.accent.primary : "transparent", border: "1.5px solid " + (checked ? theme.accent.primary : theme.stroke.primary), display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", flexShrink: 0 }}>
+          {checked ? <CheckMark color="#fff" /> : null}
+        </div>
+        <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+          <Row gap={6} align="center">
+            <Text size="small" weight="semibold" truncate style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{name}</Text>
+            {sourceTag ? <Pill size="sm">{sourceTag}</Pill> : null}
+          </Row>
+          {desc ? <Text size="small" tone="tertiary">{desc}</Text> : null}
+        </Stack>
+        {isAdded ? <Pill size="sm" active tone="success">✓ Added</Pill> : isStaged ? <Pill size="sm" active tone="info">Staged</Pill> : null}
+      </Row>
+    </div>
+  );
+}
+
+function SkillMultiPicker({ currentSkills, includeVideoSkills, onAdd, onCancel, hint }) {
+  const theme = useHostTheme();
+  const [staged, setStaged] = useState([]);
+  const [query, setQuery] = useState("");
+  const q = String(query || "").trim().toLowerCase();
+  const matches = (name, desc) => !q || String(name || "").toLowerCase().includes(q) || String(desc || "").toLowerCase().includes(q);
+  const isAdded = (n) => (currentSkills || []).includes(n);
+  const isStaged = (n) => staged.includes(n);
+  const toggle = (name) => {
+    if (isAdded(name)) return;
+    setStaged((p) => p.includes(name) ? p.filter((x) => x !== name) : [...p, name]);
+  };
+  const addNow = () => {
+    if (!staged.length) return;
+    onAdd(staged.slice());
+  };
+  const clearStaged = () => setStaged([]);
+  const cancel = () => { setStaged([]); setQuery(""); if (onCancel) onCancel(); };
+
+  const templateMatches = TEMPLATES.filter((t) => matches(t.name, t.desc));
+  const seenNames = new Set(TEMPLATES.map((t) => t.name));
+  const videoSkillEntries = includeVideoSkills ? VIDEOS.filter((v) => v.skill && !seenNames.has(v.skill.name) && matches(v.skill.name, (v.skill.desc || "") + " " + v.title)).map((v) => ({ id: v.id, name: v.skill.name, desc: (v.skill.desc || "") + " — used in " + v.title })) : [];
+
+  return (
+    <Stack gap={10} style={{ background: theme.fill.quaternary, borderRadius: 9, padding: 10 }}>
+      <Stack gap={4}>
+        <Text size="small" tone="tertiary" weight="medium">Add skills (multi-select)</Text>
+        {hint ? <Text size="small" tone="tertiary">{hint}</Text> : null}
+      </Stack>
+      <TextInput value={query} onChange={setQuery} placeholder="Search skills…" />
+      <Stack gap={6}>
+        {templateMatches.length === 0 && videoSkillEntries.length === 0 ? (
+          <Text size="small" tone="tertiary">No skills match “{query}”. Clear the search to see the full list.</Text>
+        ) : null}
+        {templateMatches.length > 0 ? <Text size="small" tone="tertiary" weight="medium">Template library</Text> : null}
+        {templateMatches.map((tpl) => (
+          <SkillStageRow key={tpl.name} name={tpl.name} desc={tpl.desc} isAdded={isAdded(tpl.name)} isStaged={isStaged(tpl.name)} onToggle={() => toggle(tpl.name)} />
+        ))}
+        {videoSkillEntries.length > 0 ? (
+          <React.Fragment>
+            <Divider />
+            <Text size="small" tone="tertiary" weight="medium">Winning-video skill shortcuts</Text>
+            {videoSkillEntries.map((entry) => (
+              <SkillStageRow key={entry.id} name={entry.name} desc={entry.desc} sourceTag="Video" isAdded={isAdded(entry.name)} isStaged={isStaged(entry.name)} onToggle={() => toggle(entry.name)} />
+            ))}
+          </React.Fragment>
+        ) : null}
+      </Stack>
+      <Divider />
+      <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
+        <Text size="small" tone={staged.length > 0 ? "primary" : "tertiary"} weight={staged.length > 0 ? "semibold" : "medium"}>{staged.length === 0 ? "Tap any skill to stage it for adding." : staged.length + " selected — click Add " + staged.length + " skill" + (staged.length === 1 ? "" : "s") + " to layer them on this video."}</Text>
+        <Spacer />
+        {staged.length > 0 ? <Button variant="ghost" onClick={clearStaged}>Clear staged</Button> : null}
+        <Button variant="ghost" onClick={cancel}>Cancel</Button>
+        <Button variant="primary" disabled={staged.length === 0} onClick={addNow}>Add {staged.length || ""} skill{staged.length === 1 ? "" : "s"}</Button>
+      </Row>
+    </Stack>
+  );
+}
+
 function BulkVoiceovers({ pendingSkills, clearPendingSkills }) {
   const theme = useHostTheme();
   const [rows, setRows] = useCanvasState("bulk.rows", []);
@@ -1333,6 +1422,12 @@ function BulkVoiceovers({ pendingSkills, clearPendingSkills }) {
   const setEditing = (id, val) => setRows((p) => p.map((r) => (r.id === id ? { ...r, editing: r.editing === val ? null : val } : r)));
   const closeEditing = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, editing: null } : r)));
   const addSkill = (id, name) => setRows((p) => p.map((r) => (r.id === id ? (r.skills.includes(name) ? r : { ...r, skills: [...r.skills, name] }) : r)));
+  const addSkillsBulk = (id, names) => setRows((p) => p.map((r) => {
+    if (r.id !== id) return r;
+    const next = [...r.skills];
+    (names || []).forEach((n) => { if (n && !next.includes(n)) next.push(n); });
+    return { ...r, skills: next, editing: null };
+  }));
   const removeSkill = (id, name) => setRows((p) => p.map((r) => (r.id === id ? { ...r, skills: r.skills.filter((x) => x !== name) } : r)));
   const setVisual = (id, key, val) => setRows((p) => p.map((r) => (r.id === id ? { ...r, visual: { ...(r.visual || DEFAULT_VISUAL_DRAFT), [key]: val } } : r)));
   const setSoundtrackLibrary = (id, t) => { updateRow(id, { soundtrack: { origin: "library", value: t.name + " · " + t.mood } }); closeEditing(id); };
@@ -1380,6 +1475,15 @@ function BulkVoiceovers({ pendingSkills, clearPendingSkills }) {
   const setSharedField = (key, val) => setShared((p) => ({ ...p, [key]: val }));
   const setSharedVisualField = (key, val) => setShared((p) => ({ ...p, visual: { ...(p.visual || DEFAULT_VISUAL_DRAFT), [key]: val } }));
   const addSharedSkill = (n) => setShared((p) => (p.skills || []).includes(n) ? p : { ...p, skills: [...(p.skills || []), n] });
+  const addSharedSkills = (names) => {
+    setShared((p) => {
+      const cur = p.skills || [];
+      const next = [...cur];
+      (names || []).forEach((n) => { if (n && !next.includes(n)) next.push(n); });
+      return { ...p, skills: next };
+    });
+    setSharedEditing(null);
+  };
   const removeSharedSkill = (n) => setShared((p) => ({ ...p, skills: (p.skills || []).filter((x) => x !== n) }));
   const setSharedEdit = (val) => setSharedEditing((p) => (p === val ? null : val));
   const sharedAssignRoster = (voId) => { const o = voById(voId); if (!o) return; setShared((p) => ({ ...p, voice: { origin: "roster", value: rosterVoiceValue(o) } })); setSharedEditing(null); };
@@ -1786,7 +1890,7 @@ function BulkVoiceovers({ pendingSkills, clearPendingSkills }) {
                     <GroupLabel type="skill" />
                     <Spacer />
                     <Text size="small" tone="tertiary">{(shared.skills || []).length} attached</Text>
-                    <Pill size="sm" active={sharedEditing === "skill"} onClick={() => setSharedEdit("skill")}>{sharedEditing === "skill" ? "Done" : "Add skill"}</Pill>
+                    <Pill size="sm" active={sharedEditing === "skill"} onClick={() => setSharedEdit("skill")}>{sharedEditing === "skill" ? "Close" : "Add skills"}</Pill>
                   </Row>
                   {(shared.skills || []).length > 0 ? (
                     <Row gap={6} wrap style={{ rowGap: 6 }}>
@@ -1796,15 +1900,13 @@ function BulkVoiceovers({ pendingSkills, clearPendingSkills }) {
                     <Text size="small" tone="tertiary">No skills attached yet — add one or more from the template library.</Text>
                   )}
                   {sharedEditing === "skill" ? (
-                    <Stack gap={8} style={{ background: theme.fill.quaternary, borderRadius: 9, padding: 10 }}>
-                      <Text size="small" tone="tertiary" weight="medium">Pick from the full template library (multi-select — keep adding)</Text>
-                      <Stack gap={6}>
-                        {TEMPLATES.map((tpl) => {
-                          const added = (shared.skills || []).includes(tpl.name);
-                          return <OptionRow key={tpl.name} title={tpl.name} subtitle={tpl.desc} actionLabel={added ? "✓ Added" : "Add"} disabled={added} onClick={() => addSharedSkill(tpl.name)} />;
-                        })}
-                      </Stack>
-                    </Stack>
+                    <SkillMultiPicker
+                      currentSkills={shared.skills || []}
+                      includeVideoSkills={true}
+                      hint="Stage as many skills as you want, then click Add to layer them all onto every video in this batch."
+                      onAdd={(names) => addSharedSkills(names)}
+                      onCancel={() => setSharedEditing(null)}
+                    />
                   ) : null}
                 </Stack>
                 <Divider />
@@ -2170,7 +2272,7 @@ function BulkVoiceovers({ pendingSkills, clearPendingSkills }) {
                             <GroupLabel type="skill" />
                             <Spacer />
                             <Text size="small" tone="tertiary">{r.skills.length} attached</Text>
-                            <Pill size="sm" active={r.editing === "skill"} onClick={() => setEditing(r.id, "skill")}>{r.editing === "skill" ? "Done" : "Add skill"}</Pill>
+                            <Pill size="sm" active={r.editing === "skill"} onClick={() => setEditing(r.id, "skill")}>{r.editing === "skill" ? "Close" : "Add skills"}</Pill>
                           </Row>
                           {r.skills.length > 0 ? (
                             <Row gap={6} wrap style={{ rowGap: 6 }}>
@@ -2180,21 +2282,13 @@ function BulkVoiceovers({ pendingSkills, clearPendingSkills }) {
                             <Text size="small" tone="tertiary">No skills attached yet — add one or more from the template library.</Text>
                           )}
                           {r.editing === "skill" ? (
-                            <Stack gap={8} style={editorBoxStyle}>
-                              <Text size="small" tone="tertiary" weight="medium">Pick from the full template library (multi-select — keep adding)</Text>
-                              <Stack gap={6}>
-                                {TEMPLATES.map((tpl) => {
-                                  const added = r.skills.includes(tpl.name);
-                                  return <OptionRow key={tpl.name} title={tpl.name} subtitle={tpl.desc} actionLabel={added ? "✓ Added" : "Add"} disabled={added} onClick={() => addSkill(r.id, tpl.name)} />;
-                                })}
-                              </Stack>
-                              <Divider />
-                              <Text size="small" tone="tertiary" weight="medium">Or use a winning video's skill</Text>
-                              <Stack gap={6}>{VIDEOS.map((v) => {
-                                const added = r.skills.includes(v.skill.name);
-                                return <OptionRow key={v.id} title={v.title} subtitle={v.skill.name + " — " + v.skill.desc} actionLabel={added ? "✓ Added" : "Add"} disabled={added} onClick={() => addSkill(r.id, v.skill.name)} />;
-                              })}</Stack>
-                            </Stack>
+                            <SkillMultiPicker
+                              currentSkills={r.skills}
+                              includeVideoSkills={true}
+                              hint="Stage as many skills as you want — search to filter, tap rows to check/uncheck, then click Add to layer them on this video. (You don't need to leave Bulk Studio for this.)"
+                              onAdd={(names) => addSkillsBulk(r.id, names)}
+                              onCancel={() => closeEditing(r.id)}
+                            />
                           ) : null}
                         </Stack>
 

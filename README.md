@@ -15,6 +15,14 @@ instead of wrestling with a cramped form.
 
 ## What's new in v2
 
+**In-card multi-skill picker:** the **Skill / Template** ingredient row inside any Bulk
+Studio Per-video card — and the multi-skill stack on the **Quick mode shared recipe** — now
+opens a true multi-select picker. Each row in the picker has a checkbox; you can search the
+template library, stage as many skills as you want (including winning-video skill
+shortcuts), and click **Add N skills** to layer them on the card in a single action — all
+without leaving Bulk Studio. Already-attached skills stay marked **✓ Added** and aren't
+re-stage-able. The Skills tab's multi-select bridge keeps working as a quick-start path.
+
 The standalone **New Batch Flow** wizard tab has been removed and folded into **Bulk Studio**
 via a top-of-tab **Mode toggle**. Bulk Studio now offers two modes: **Quick batch** (one
 shared recipe — voiceover, soundtrack, creative direction, multi-skill stack, visual style —
@@ -180,8 +188,15 @@ or fine-tune each video individually.
     upload, or a winning video's soundtrack; **Remove** clears it.
   - **Creative Direction** — inline textarea; Swap to copy from a winning video.
   - **Skill/Template — multi-select.** Attached skills appear as removable **✕** chips; **Add
-    skill** opens the full template list (with **✓ Added** state on already-attached ones) and
-    a "winning video skill" shortcut, so you can layer several skills on one video.
+    skills** opens an inline multi-select picker with a search input, the full template
+    library, and the winning-video skill shortcuts. Tap any row to **stage** it (checkbox
+    fills with the accent color and the row gets a "Staged" pill), and a footer line tracks
+    "**N selected — click Add N skills to layer them on this video.**" Hit the primary
+    **Add N skills** CTA to append every staged skill in one update; **Clear staged**
+    resets staging without closing, **Cancel** closes without adding. Already-attached
+    skills appear as **✓ Added** and can't be re-staged. The exact same picker powers the
+    Quick-mode **Shared recipe**'s skill stack, so layering several skills onto every
+    video in the batch is a one-action flow there too.
   - **Visual Style** — Format / Duration / Color grade / Captions configurator inline; Swap to
     copy from a winning video's visual style.
 - **Missing-voiceover prompt:** any card without a voice is clearly flagged **"Needs
