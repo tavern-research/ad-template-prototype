@@ -1458,9 +1458,7 @@ function NumberBadge({ n }) {
 function BulkVoiceovers() {
   const theme = useHostTheme();
   const [rows, setRows] = useCanvasState("bulk.rows", []);
-  const [editor, setEditor] = useCanvasState("bulk.editor", null);
   const [voDraft, setVoDraft] = useCanvasState("bulk.voDraft", VO_ROSTER[0].id);
-  const [upDraft, setUpDraft] = useCanvasState("bulk.upDraft", "");
   const [picker, setPicker] = useCanvasState("bulk.picker", "");
   const [custom, setCustom] = useCanvasState("bulk.custom", "");
   const [note, setNote] = useCanvasState("bulk.note", "");
@@ -1471,7 +1469,7 @@ function BulkVoiceovers() {
 
   const addRowsFrom = (items) => setRows((p) => {
     const room = BULK_MAX - p.length; if (room <= 0) return p;
-    const adds = items.slice(0, room).map((s) => ({ id: makeUid(), expanded: false, source: s.source || "custom", title: s.title || "", text: s.text || "", voice: s.voice || null, soundtrack: s.soundtrack || null, creative: s.creative || "", skills: s.skills || [], visual: s.visual || { ...DEFAULT_VISUAL_DRAFT } }));
+    const adds = items.slice(0, room).map((s) => ({ id: makeUid(), expanded: false, editing: null, source: s.source || "custom", title: s.title || "", text: s.text || "", voice: s.voice || null, soundtrack: s.soundtrack || null, creative: s.creative || "", skills: s.skills || [], visual: s.visual || { ...DEFAULT_VISUAL_DRAFT } }));
     return [...p, ...adds];
   });
   const addLibrary = (s) => { if (!atCap) { addRowsFrom([libraryFullRow(s)]); setNote(""); } };
@@ -1479,27 +1477,34 @@ function BulkVoiceovers() {
   const addVideo = (v) => { if (!atCap) { addRowsFrom([videoFullRow(v)]); setNote(""); } };
   const addAllVideos = () => { addRowsFrom(VIDEOS.map(videoFullRow)); setNote(""); };
   const addCustom = () => { const t = custom.trim(); if (!t || atCap) return; addRowsFrom([customFullRow(t)]); setCustom(""); setNote(""); };
-  const removeRow = (id) => { setRows((p) => p.filter((r) => r.id !== id)); setEditor((e) => (e && e.rowId === id ? null : e)); };
-  const clearAll = () => { setRows([]); setEditor(null); setNote(""); };
+  const removeRow = (id) => setRows((p) => p.filter((r) => r.id !== id));
+  const clearAll = () => { setRows([]); setNote(""); };
 
   const updateRow = (id, patch) => setRows((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const toggleExpand = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, expanded: !r.expanded } : r)));
   const setAllExpanded = (val) => setRows((p) => p.map((r) => ({ ...r, expanded: val })));
-  const toggleSkill = (id, name) => setRows((p) => p.map((r) => (r.id === id ? { ...r, skills: r.skills.includes(name) ? r.skills.filter((x) => x !== name) : [...r.skills, name] } : r)));
+  const setEditing = (id, val) => setRows((p) => p.map((r) => (r.id === id ? { ...r, editing: r.editing === val ? null : val } : r)));
+  const closeEditing = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, editing: null } : r)));
+  const addSkill = (id, name) => setRows((p) => p.map((r) => (r.id === id ? (r.skills.includes(name) ? r : { ...r, skills: [...r.skills, name] }) : r)));
+  const removeSkill = (id, name) => setRows((p) => p.map((r) => (r.id === id ? { ...r, skills: r.skills.filter((x) => x !== name) } : r)));
   const setVisual = (id, key, val) => setRows((p) => p.map((r) => (r.id === id ? { ...r, visual: { ...(r.visual || DEFAULT_VISUAL_DRAFT), [key]: val } } : r)));
-  const setSoundtrackLibrary = (id, trackId) => { if (trackId === "none") return; const t = TRACK_LIBRARY.find((x) => x.id === trackId); if (t) updateRow(id, { soundtrack: { origin: "library", value: t.name + " · " + t.mood } }); };
-  const setSoundtrackUpload = (id, f) => updateRow(id, { soundtrack: { origin: "uploaded", value: f } });
+  const setSoundtrackLibrary = (id, t) => { updateRow(id, { soundtrack: { origin: "library", value: t.name + " · " + t.mood } }); closeEditing(id); };
+  const setSoundtrackUpload = (id, f) => { updateRow(id, { soundtrack: { origin: "uploaded", value: f } }); closeEditing(id); };
   const clearSoundtrack = (id) => updateRow(id, { soundtrack: null });
+  const useVideoScript = (id, v) => { updateRow(id, { title: v.title, text: v.script.text }); closeEditing(id); };
+  const useLibScript = (id, s) => { updateRow(id, { title: s.title, text: s.text }); closeEditing(id); };
+  const useVideoVoice = (id, v) => { updateRow(id, { voice: { origin: "video", value: v.voiceover.artist + " — " + v.voiceover.provider, from: v.title } }); closeEditing(id); };
+  const useVideoTrack = (id, v) => { updateRow(id, { soundtrack: { origin: "library", value: v.soundtrack.name + " · " + v.soundtrack.mood } }); closeEditing(id); };
+  const useVideoCreative = (id, v) => { updateRow(id, { creative: v.creative }); closeEditing(id); };
+  const useVideoVisual = (id, v) => { updateRow(id, { visual: { format: v.visual.format, duration: v.visual.duration, grade: v.visual.grade, captions: v.visual.captions } }); closeEditing(id); };
 
-  const openEditor = (rowId, mode) => { setEditor({ rowId, mode }); if (mode !== "upload") setVoDraft(VO_ROSTER[0].id); if (mode === "upload") setUpDraft(""); };
-  const assignRoster = (id, voId) => { const o = voById(voId); if (!o) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "roster", value: rosterVoiceValue(o) } } : r))); setEditor(null); };
+  const assignRoster = (id, voId) => { const o = voById(voId); if (!o) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "roster", value: rosterVoiceValue(o) }, editing: null } : r))); };
   const startGenerate = (id) => {
     const o = voById(voDraft) || VO_ROSTER[0];
-    setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "generated", value: o.name + " — " + o.provider + " (TTS)", status: "generating" } } : r)));
-    setEditor(null);
+    setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "generated", value: o.name + " — " + o.provider + " (TTS)", status: "generating" }, editing: null } : r)));
     setTimeout(() => { setRows((p) => p.map((r) => (r.id === id && r.voice && r.voice.status === "generating" ? { ...r, voice: { origin: "generated", value: r.voice.value, status: "done" } } : r))); }, 900);
   };
-  const uploadVoice = (id, file) => { const f = (file || "").trim(); if (!f) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "uploaded", value: f } } : r))); setEditor(null); setUpDraft(""); };
+  const uploadVoice = (id, file) => { const f = (file || "").trim(); if (!f) return; setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: { origin: "uploaded", value: f }, editing: null } : r))); };
   const clearVoice = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, voice: null } : r)));
 
   const bulkGenerate = () => {
@@ -1521,10 +1526,12 @@ function BulkVoiceovers() {
           </Stack>
           <Stack gap={12}>
             {created.rows.map((r, i) => {
+              const labelStyle = { width: 84, flexShrink: 0 };
+              const iconWrap = { color: theme.text.tertiary, display: "flex", marginTop: 1, flexShrink: 0 };
               const line = (type, label, value, tag, tagTone) => (
                 <Row gap={8} align="start">
-                  <span style={{ color: theme.text.tertiary, display: "flex", marginTop: 1, flexShrink: 0 }}><ElIcon type={type} size={13} /></span>
-                  <Text size="small" tone="tertiary" style={{ width: 74, flexShrink: 0 }}>{label}</Text>
+                  <span style={iconWrap}><ElIcon type={type} size={13} /></span>
+                  <Text size="small" tone="tertiary" style={labelStyle}>{label}</Text>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Row gap={6} align="center">
                       <Text size="small" style={{ flex: 1, minWidth: 0 }}>{value}</Text>
@@ -1544,9 +1551,15 @@ function BulkVoiceovers() {
                       <Stack gap={6}>
                         {line("script", "Script", r.text || "—")}
                         {line("voiceover", "Voiceover", r.voice ? r.voice.value : "—", r.voice ? bulkOriginLabel(r.voice) : null, r.voice ? BULK_ORIGIN_TONE[r.voice.origin] : "neutral")}
-                        {line("soundtrack", "Soundtrack", r.soundtrack ? r.soundtrack.value : "None")}
+                        {line("soundtrack", "Soundtrack", r.soundtrack ? r.soundtrack.value : "None", r.soundtrack ? (r.soundtrack.origin === "uploaded" ? "Uploaded" : "Library") : null, r.soundtrack && r.soundtrack.origin === "uploaded" ? "info" : "neutral")}
                         {line("creative", "Creative", r.creative || "—")}
-                        {line("skill", "Skill", r.skills.length ? r.skills.join(", ") : "—")}
+                        <Row gap={8} align="start">
+                          <span style={iconWrap}><ElIcon type="skill" size={13} /></span>
+                          <Text size="small" tone="tertiary" style={labelStyle}>Skills ({r.skills.length})</Text>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {r.skills.length ? <Row gap={6} wrap style={{ rowGap: 6 }}>{r.skills.map((s) => <Pill key={s} size="sm" active>{s}</Pill>)}</Row> : <Text size="small">—</Text>}
+                          </div>
+                        </Row>
                         {line("visual", "Visual", r.visual ? (r.visual.format + " · " + r.visual.duration + " · " + r.visual.grade + " · " + r.visual.captions) : "—")}
                       </Stack>
                     </Stack>
@@ -1572,7 +1585,7 @@ function BulkVoiceovers() {
             <Spacer />
             <Pill active={rows.length > 0} tone={counterTone}>{rows.length} / {BULK_MAX}</Pill>
           </Row>
-          <Text tone="secondary">Build up to {BULK_MAX} videos at once. Each video is a full editable recipe — script, voiceover, soundtrack, creative direction, skill and visual style. Pull a winning video to prefill the whole recipe, or start from a script and edit every field.</Text>
+          <Text tone="secondary">Build up to {BULK_MAX} videos at once. Each video expands into the same six-ingredient editor as a Winning Videos card — script, voiceover, soundtrack, creative direction, skills (multi) and visual style. Pull a winning video to prefill the whole recipe, then fine-tune any field.</Text>
         </Stack>
 
         <Card>
@@ -1648,7 +1661,7 @@ function BulkVoiceovers() {
         ) : null}
 
         {rows.length === 0 ? (
-          <Callout tone="neutral" title="No videos yet">Add videos above — pull a winning video to prefill the whole recipe, add a library script, or start from scratch. Each video is a full editable recipe; any missing voiceover can be generated or uploaded.</Callout>
+          <Callout tone="neutral" title="No videos yet">Add videos above — pull a winning video to prefill the whole recipe, add a library script, or start from scratch. Each video expands into a Library-style six-ingredient editor.</Callout>
         ) : (
           <Stack gap={10}>
             <Row align="center" gap={8} wrap style={{ rowGap: 8 }}>
@@ -1659,9 +1672,8 @@ function BulkVoiceovers() {
               <Button variant="ghost" onClick={() => setAllExpanded(false)}>Collapse all</Button>
             </Row>
             {rows.map((r, i) => {
-              const ed = editor && editor.rowId === r.id ? editor.mode : null;
-              const ingredients = [["voiceover", !!r.voice], ["soundtrack", !!r.soundtrack], ["creative", r.creative.trim().length > 0], ["skill", r.skills.length > 0], ["visual", !!r.visual]];
               const cardBorder = r.expanded ? theme.accent.primary : (!r.voice ? TONE.warning + "88" : theme.stroke.secondary);
+              const editorBoxStyle = { background: theme.fill.quaternary, borderRadius: 9, padding: 10 };
               return (
                 <div key={r.id} style={{ border: "1px solid " + cardBorder, borderRadius: 12, background: !r.voice && !r.expanded ? TONE.warning + "0D" : theme.bg.elevated, padding: 12 }}>
                   <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
@@ -1677,9 +1689,10 @@ function BulkVoiceovers() {
                       <Text size="small" tone="tertiary" truncate>{r.text || "No script yet"}</Text>
                     </div>
                     <Row gap={6} align="center" style={{ flexShrink: 0 }}>
-                      {ingredients.map(([t, on]) => (
+                      {[["voiceover", !!r.voice], ["soundtrack", !!r.soundtrack], ["creative", r.creative.trim().length > 0], ["visual", !!r.visual]].map(([t, on]) => (
                         <span key={t} title={TYPE_LABEL[t] + (on ? " · set" : " · not set")} style={{ color: on ? theme.accent.primary : theme.text.quaternary, display: "flex" }}><ElIcon type={t} size={13} /></span>
                       ))}
+                      <Pill size="sm" active={r.skills.length > 0} tone={r.skills.length > 0 ? "info" : "neutral"} leadingContent={<ElIcon type="skill" size={11} />}>{r.skills.length} skill{r.skills.length === 1 ? "" : "s"}</Pill>
                     </Row>
                     {r.voice ? (
                       <Pill size="sm" active tone={r.voice.status === "generating" ? "neutral" : BULK_ORIGIN_TONE[r.voice.origin]}>{r.voice.status === "generating" ? "Generating…" : bulkOriginLabel(r.voice)}</Pill>
@@ -1693,92 +1706,176 @@ function BulkVoiceovers() {
                   {r.expanded ? (
                     <div style={{ marginTop: 12, borderTop: "1px solid " + theme.stroke.tertiary, paddingTop: 14 }}>
                       <Stack gap={14}>
-                        <Stack gap={6}>
-                          <GroupLabel type="script" />
+
+                        {/* SCRIPT */}
+                        <Stack gap={8}>
+                          <Row align="center">
+                            <GroupLabel type="script" />
+                            <Spacer />
+                            <Pill size="sm" active={r.editing === "script"} onClick={() => setEditing(r.id, "script")}>{r.editing === "script" ? "Done" : "Swap"}</Pill>
+                          </Row>
                           <TextInput value={r.title} onChange={(val) => updateRow(r.id, { title: val })} placeholder="Video title" />
                           <TextArea value={r.text} onChange={(val) => updateRow(r.id, { text: val })} rows={3} placeholder="What should this video say?" />
+                          {r.editing === "script" ? (
+                            <Stack gap={8} style={editorBoxStyle}>
+                              <Text size="small" tone="tertiary" weight="medium">Use a winning video's script</Text>
+                              <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.script.text} actionLabel="Use" onClick={() => useVideoScript(r.id, v)} />)}</Stack>
+                              <Divider />
+                              <Text size="small" tone="tertiary" weight="medium">Or pick a library script</Text>
+                              <Stack gap={6}>{LIBRARY_SCRIPTS.map((s) => <OptionRow key={s.id} title={s.title} subtitle={s.text} actionLabel="Use" onClick={() => useLibScript(r.id, s)} />)}</Stack>
+                            </Stack>
+                          ) : null}
                         </Stack>
+
                         <Divider />
-                        <Stack gap={6}>
-                          <GroupLabel type="voiceover" />
+
+                        {/* VOICEOVER */}
+                        <Stack gap={8}>
+                          <Row align="center">
+                            <GroupLabel type="voiceover" />
+                            <Spacer />
+                            <Pill size="sm" active={r.editing === "voiceover"} onClick={() => setEditing(r.id, "voiceover")}>{r.editing === "voiceover" ? "Done" : (r.voice ? "Swap" : "Pick")}</Pill>
+                          </Row>
                           {r.voice ? (
                             <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
                               <span style={{ color: theme.text.tertiary, display: "flex", flexShrink: 0 }}><ElIcon type="voiceover" size={13} /></span>
                               <Text size="small" truncate style={{ flex: 1, minWidth: 0 }}>{r.voice.value}</Text>
                               {r.voice.status === "generating" ? <Pill size="sm" tone="neutral">Generating…</Pill> : <Pill size="sm" active tone={BULK_ORIGIN_TONE[r.voice.origin]}>{bulkOriginLabel(r.voice)}</Pill>}
-                              <Button variant="ghost" onClick={() => openEditor(r.id, "reassign")}>Change</Button>
                             </Row>
                           ) : (
-                            <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
-                              <Pill size="sm" active tone="warning" leadingContent={<ElIcon type="voiceover" size={11} />}>Needs voiceover</Pill>
-                              <Button variant="secondary" onClick={() => openEditor(r.id, "generate")}>Generate</Button>
-                              <Button variant="secondary" onClick={() => openEditor(r.id, "upload")}>Upload</Button>
-                            </Row>
+                            <Pill size="sm" active tone="warning" leadingContent={<ElIcon type="voiceover" size={11} />}>Needs voiceover</Pill>
                           )}
-                          {ed ? (
-                            <div style={{ borderTop: "1px solid " + theme.stroke.tertiary, paddingTop: 10 }}>
-                              {ed === "generate" ? (
-                                <Stack gap={8}>
-                                  <Text size="small" tone="tertiary" weight="medium">Generate a voiceover with TTS — choose a voice</Text>
-                                  <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
-                                    <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
-                                    <Button variant="primary" onClick={() => startGenerate(r.id)}>Generate voiceover</Button>
-                                    <Button variant="ghost" onClick={() => setEditor(null)}>Cancel</Button>
-                                  </Row>
-                                </Stack>
-                              ) : ed === "upload" ? (
-                                <Stack gap={8}>
-                                  <Text size="small" tone="tertiary" weight="medium">Upload a voiceover file</Text>
-                                  <Row gap={8} align="center">
-                                    <div style={{ flex: 1 }}><TextInput value={upDraft} onChange={setUpDraft} placeholder="my-vo-take3.mp3" /></div>
-                                    <Button variant="secondary" disabled={!upDraft.trim()} onClick={() => uploadVoice(r.id, upDraft)}>Upload</Button>
-                                    <Button variant="ghost" onClick={() => setEditor(null)}>Cancel</Button>
-                                  </Row>
-                                  <Row gap={6} wrap style={{ rowGap: 6 }}>{MOCK_VO_FILES.map((f) => <Pill key={f} size="sm" onClick={() => uploadVoice(r.id, f)}>{f}</Pill>)}</Row>
-                                </Stack>
-                              ) : (
-                                <Stack gap={8}>
-                                  <Text size="small" tone="tertiary" weight="medium">Reassign voiceover</Text>
-                                  <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
-                                    <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
-                                    <Button variant="primary" onClick={() => assignRoster(r.id, voDraft)}>Assign from roster</Button>
-                                    <Button variant="secondary" onClick={() => openEditor(r.id, "generate")}>Generate</Button>
-                                    <Button variant="secondary" onClick={() => openEditor(r.id, "upload")}>Upload</Button>
-                                  </Row>
-                                  <Row><Button variant="ghost" onClick={() => { clearVoice(r.id); setEditor(null); }}>Clear voiceover</Button></Row>
-                                </Stack>
-                              )}
-                            </div>
+                          {(r.editing === "voiceover" || !r.voice) ? (
+                            <Stack gap={10} style={editorBoxStyle}>
+                              <Stack gap={6}>
+                                <Text size="small" tone="tertiary" weight="medium">Pick from the roster</Text>
+                                <Row gap={8} align="center" wrap style={{ rowGap: 8 }}>
+                                  <div style={{ flex: 1, minWidth: 200 }}><Select value={voDraft} onChange={setVoDraft} options={VO_OPTIONS} /></div>
+                                  <Button variant="secondary" onClick={() => assignRoster(r.id, voDraft)}>Assign</Button>
+                                </Row>
+                              </Stack>
+                              <Divider />
+                              <Stack gap={6}>
+                                <Text size="small" tone="tertiary" weight="medium">Generate with TTS using the picked roster voice</Text>
+                                <Row><Button variant="secondary" onClick={() => startGenerate(r.id)}>Generate voiceover</Button></Row>
+                              </Stack>
+                              <Divider />
+                              <Stack gap={6}>
+                                <Text size="small" tone="tertiary" weight="medium">Upload your own</Text>
+                                <MockUpload stateKey={"bulk.vo." + r.id} currentFile="" placeholder="my-vo-take3.mp3" suggestions={MOCK_VO_FILES} onUpload={(f) => uploadVoice(r.id, f)} />
+                              </Stack>
+                              <Divider />
+                              <Stack gap={6}>
+                                <Text size="small" tone="tertiary" weight="medium">Use a winning video's voiceover</Text>
+                                <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.voiceover.artist + " — " + v.voiceover.provider} actionLabel="Use" onClick={() => useVideoVoice(r.id, v)} />)}</Stack>
+                              </Stack>
+                              {r.voice ? <Row><Button variant="ghost" onClick={() => { clearVoice(r.id); closeEditing(r.id); }}>Clear voiceover</Button></Row> : null}
+                            </Stack>
                           ) : null}
                         </Stack>
+
                         <Divider />
-                        <Stack gap={6}>
-                          <GroupLabel type="soundtrack" />
+
+                        {/* SOUNDTRACK */}
+                        <Stack gap={8}>
+                          <Row align="center">
+                            <GroupLabel type="soundtrack" />
+                            <Spacer />
+                            <Pill size="sm" active={r.editing === "soundtrack"} onClick={() => setEditing(r.id, "soundtrack")}>{r.editing === "soundtrack" ? "Done" : (r.soundtrack ? "Swap" : "Pick")}</Pill>
+                          </Row>
                           {r.soundtrack ? (
                             <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
+                              <span style={{ color: theme.text.tertiary, display: "flex", flexShrink: 0 }}><ElIcon type="soundtrack" size={13} /></span>
                               <Text size="small" truncate style={{ flex: 1, minWidth: 0 }}>{r.soundtrack.value}</Text>
                               <Pill size="sm" active tone={r.soundtrack.origin === "uploaded" ? "info" : "neutral"}>{r.soundtrack.origin === "uploaded" ? "Uploaded" : "Library"}</Pill>
                               <Button variant="ghost" onClick={() => clearSoundtrack(r.id)}>Remove</Button>
                             </Row>
+                          ) : (
+                            <Text size="small" tone="tertiary">No soundtrack — pick one or leave silent.</Text>
+                          )}
+                          {r.editing === "soundtrack" ? (
+                            <Stack gap={10} style={editorBoxStyle}>
+                              <Stack gap={6}>
+                                <Text size="small" tone="tertiary" weight="medium">Pick from the track library</Text>
+                                <Stack gap={6}>{TRACK_LIBRARY.map((t) => <OptionRow key={t.id} title={t.name} subtitle={t.mood} actionLabel="Use" onClick={() => setSoundtrackLibrary(r.id, t)} />)}</Stack>
+                              </Stack>
+                              <Divider />
+                              <Stack gap={6}>
+                                <Text size="small" tone="tertiary" weight="medium">Upload audio</Text>
+                                <MockUpload stateKey={"bulk.snd." + r.id} currentFile="" placeholder="campaign-bed-loop.mp3" suggestions={MOCK_AUDIO_FILES} onUpload={(f) => setSoundtrackUpload(r.id, f)} />
+                              </Stack>
+                              <Divider />
+                              <Stack gap={6}>
+                                <Text size="small" tone="tertiary" weight="medium">Use a winning video's soundtrack</Text>
+                                <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.soundtrack.name + " · " + v.soundtrack.mood} actionLabel="Use" onClick={() => useVideoTrack(r.id, v)} />)}</Stack>
+                              </Stack>
+                            </Stack>
                           ) : null}
-                          <Select value="none" onChange={(val) => setSoundtrackLibrary(r.id, val)} options={TRACK_OPTIONS} />
-                          <MockUpload stateKey={"bulk.snd." + r.id} currentFile="" placeholder="campaign-bed-loop.mp3" suggestions={MOCK_AUDIO_FILES} onUpload={(f) => setSoundtrackUpload(r.id, f)} />
                         </Stack>
+
                         <Divider />
-                        <Stack gap={6}>
-                          <GroupLabel type="creative" />
-                          <TextArea value={r.creative} onChange={(val) => updateRow(r.id, { creative: val })} rows={3} placeholder="Describe the look and tone in your own words…" />
-                        </Stack>
-                        <Divider />
-                        <Stack gap={6}>
-                          <GroupLabel type="skill" />
-                          <Row gap={6} wrap style={{ rowGap: 6 }}>
-                            {TEMPLATES.map((tpl) => <Pill key={tpl.name} size="sm" active={r.skills.includes(tpl.name)} onClick={() => toggleSkill(r.id, tpl.name)}>{tpl.name}</Pill>)}
+
+                        {/* CREATIVE */}
+                        <Stack gap={8}>
+                          <Row align="center">
+                            <GroupLabel type="creative" />
+                            <Spacer />
+                            <Pill size="sm" active={r.editing === "creative"} onClick={() => setEditing(r.id, "creative")}>{r.editing === "creative" ? "Done" : "Swap"}</Pill>
                           </Row>
+                          <TextArea value={r.creative} onChange={(val) => updateRow(r.id, { creative: val })} rows={3} placeholder="Describe the look and tone in your own words…" />
+                          {r.editing === "creative" ? (
+                            <Stack gap={8} style={editorBoxStyle}>
+                              <Text size="small" tone="tertiary" weight="medium">Use a winning video's creative direction</Text>
+                              <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.creative} actionLabel="Use" onClick={() => useVideoCreative(r.id, v)} />)}</Stack>
+                            </Stack>
+                          ) : null}
                         </Stack>
+
                         <Divider />
-                        <Stack gap={6}>
-                          <GroupLabel type="visual" />
+
+                        {/* SKILLS — multi */}
+                        <Stack gap={8}>
+                          <Row align="center" gap={8}>
+                            <GroupLabel type="skill" />
+                            <Spacer />
+                            <Text size="small" tone="tertiary">{r.skills.length} attached</Text>
+                            <Pill size="sm" active={r.editing === "skill"} onClick={() => setEditing(r.id, "skill")}>{r.editing === "skill" ? "Done" : "Add skill"}</Pill>
+                          </Row>
+                          {r.skills.length > 0 ? (
+                            <Row gap={6} wrap style={{ rowGap: 6 }}>
+                              {r.skills.map((sk) => <Pill key={sk} size="sm" active onClick={() => removeSkill(r.id, sk)}>{sk}  ✕</Pill>)}
+                            </Row>
+                          ) : (
+                            <Text size="small" tone="tertiary">No skills attached yet — add one or more from the template library.</Text>
+                          )}
+                          {r.editing === "skill" ? (
+                            <Stack gap={8} style={editorBoxStyle}>
+                              <Text size="small" tone="tertiary" weight="medium">Pick from the full template library (multi-select — keep adding)</Text>
+                              <Stack gap={6}>
+                                {TEMPLATES.map((tpl) => {
+                                  const added = r.skills.includes(tpl.name);
+                                  return <OptionRow key={tpl.name} title={tpl.name} subtitle={tpl.desc} actionLabel={added ? "✓ Added" : "Add"} disabled={added} onClick={() => addSkill(r.id, tpl.name)} />;
+                                })}
+                              </Stack>
+                              <Divider />
+                              <Text size="small" tone="tertiary" weight="medium">Or use a winning video's skill</Text>
+                              <Stack gap={6}>{VIDEOS.map((v) => {
+                                const added = r.skills.includes(v.skill.name);
+                                return <OptionRow key={v.id} title={v.title} subtitle={v.skill.name + " — " + v.skill.desc} actionLabel={added ? "✓ Added" : "Add"} disabled={added} onClick={() => addSkill(r.id, v.skill.name)} />;
+                              })}</Stack>
+                            </Stack>
+                          ) : null}
+                        </Stack>
+
+                        <Divider />
+
+                        {/* VISUAL */}
+                        <Stack gap={8}>
+                          <Row align="center">
+                            <GroupLabel type="visual" />
+                            <Spacer />
+                            <Pill size="sm" active={r.editing === "visual"} onClick={() => setEditing(r.id, "visual")}>{r.editing === "visual" ? "Done" : "Swap"}</Pill>
+                          </Row>
                           <Row gap={8} wrap style={{ rowGap: 8 }}>
                             <div style={{ flex: 1, minWidth: 130 }}>
                               <Text size="small" tone="tertiary" weight="medium" style={{ marginBottom: 4 }}>Format</Text>
@@ -1799,7 +1896,14 @@ function BulkVoiceovers() {
                               <Select value={r.visual.captions} onChange={(val) => setVisual(r.id, "captions", val)} options={VISUAL_CAPTIONS.map((o) => ({ value: o, label: o }))} />
                             </div>
                           </Row>
+                          {r.editing === "visual" ? (
+                            <Stack gap={8} style={editorBoxStyle}>
+                              <Text size="small" tone="tertiary" weight="medium">Use a winning video's visual style</Text>
+                              <Stack gap={6}>{VIDEOS.map((v) => <OptionRow key={v.id} title={v.title} subtitle={v.visual.format + " · " + v.visual.duration + " · " + v.visual.grade + " · " + v.visual.captions} actionLabel="Use" onClick={() => useVideoVisual(r.id, v)} />)}</Stack>
+                            </Stack>
+                          ) : null}
                         </Stack>
+
                       </Stack>
                     </div>
                   ) : null}

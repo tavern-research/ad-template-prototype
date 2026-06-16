@@ -15,18 +15,20 @@ or step through a **guided wizard** instead of wrestling with a cramped form.
 ## What's new in v2
 
 A third tab — **Bulk Voiceovers** — lets you build a batch of up to **50 videos** at once,
-where **each video is a full, expandable recipe card** (styled like the Winning Videos Library
-cards). Collapsed, a card shows a compact summary (index, title, voiceover status, and small
-indicators of which ingredients are set); expand it to edit the whole recipe for that one
-video — **Script, Voiceover, Soundtrack, Creative Direction, Skill/Template, and Visual Style**
-— right there on the card. **Pulling a winning video prefills the entire recipe** (tagged
-**"From {video}"**) and every field stays editable; you can also add a **library script** (script
-only) or a **custom** blank card. Any card without a voice is flagged **"Needs voiceover"** and
-is resolved with **Generate** (mock TTS — *generating → generated*) or **Upload**, with origin
-tags (**Roster / Generated / Uploaded / From {video}**). The primary CTA is **"Generate N
-videos"**: it checks every card has a voiceover (gently pointing you to unresolved ones), then
-shows a confirmation listing each video's full recipe. See [Bulk Voiceovers](#3-bulk-voiceovers)
-below for details.
+where **each video expands into the same six-ingredient editor as a Winning Videos card**.
+Collapsed, a card shows a compact summary (index, title, voiceover status, ingredient
+indicators, and a **skills: N** count); expand it and you get the familiar Library-style rows
+for **Script, Voiceover, Soundtrack, Creative Direction, Skill/Template, and Visual Style**,
+each with an inline **Swap / Pick / Add skill** picker that lets you choose from a winning
+video, the roster/library, write/upload your own, or layer multiple skills. **Pulling a
+winning video prefills the entire recipe** (tagged **"From {video}"**) and every field stays
+editable. **Skills are now multi-select per video** — winning-video skills come over as
+chips, you can keep adding more from the full template list, remove any with **✕**, and the
+final summary lists every attached skill. Any card without a voice is flagged **"Needs
+voiceover"** and is resolved with **Roster / Generate / Upload / From a winning video**, with
+origin tags. The primary CTA — **"Generate N videos"** — validates every card has a voiceover
+(expanding and pointing you to unresolved ones) and confirms the full per-video recipe.
+See [Bulk Voiceovers](#3-bulk-voiceovers) below for details.
 
 ## What you can do in it
 
@@ -59,31 +61,41 @@ A guided **8-step wizard** that replaces the cramped single form: Start → Proj
   backing track supports *pick from the library / upload audio* — all tagged by source.
 
 ### 3. Bulk Voiceovers
-*(new in v2)* A workspace for building a batch of videos at once, where **each video is a full,
-expandable recipe card** — not just a script + voiceover row.
+*(new in v2)* A workspace for building a batch of videos at once, where **each video expands
+into the same six-ingredient editor as a Winning Videos card** — not just a script + voiceover
+row.
 
 - **Build up to 50 videos.** A running **N / 50** counter is shown, and "add" is disabled with a
   gentle note once you hit the cap. **Expand all / Collapse all** keeps the list scannable, and
   the header shows how many videos still need a voiceover.
 - **Three ways to add a video:** pull a **winning video** to **prefill the entire recipe**
-  (script + voiceover + soundtrack + creative + skill + visual; one at a time or **add all
+  (script + voiceover + soundtrack + creative + skills + visual; one at a time or **add all
   winning videos**), tagged **"From {video title}"**; add a **library script** (script only,
   other fields blank/defaults, voiceover shows *Needs voiceover*); or add a **custom** blank
   card. Remove any video at any time.
-- **Expandable rich cards:** collapsed shows index, title, voiceover status, and small
-  indicators of which of the six ingredients are set. Expand to edit the **whole recipe** for
-  that one video — **Script** (title + text), **Voiceover** (roster / Generate / Upload),
-  **Soundtrack** (track library or mock upload, or none), **Creative Direction** (free text),
-  **Skill/Template** (multi-select from the template list), and **Visual Style** (format /
-  duration / color grade / captions).
+- **Expandable Library-style cards:** collapsed shows index, title, voiceover status, on/off
+  indicators for voiceover/soundtrack/creative/visual, and a **skills: N** count chip. Expand
+  to edit the **whole recipe** in the familiar Library card layout — six ingredient rows, each
+  with a **Swap / Pick / Add skill** chip that opens an inline picker:
+  - **Script** — title + text inline; Swap to use a winning video's script or a library script.
+  - **Voiceover** — current value with origin tag; picker offers **Roster** select,
+    **Generate** (mock TTS), **Upload** (mock file), or **Use a winning video's voiceover**.
+  - **Soundtrack** — current track with origin tag; picker offers track library, mock audio
+    upload, or a winning video's soundtrack; **Remove** clears it.
+  - **Creative Direction** — inline textarea; Swap to copy from a winning video.
+  - **Skill/Template — multi-select.** Attached skills appear as removable **✕** chips; **Add
+    skill** opens the full template list (with **✓ Added** state on already-attached ones) and
+    a "winning video skill" shortcut, so you can layer several skills on one video.
+  - **Visual Style** — Format / Duration / Color grade / Captions configurator inline; Swap to
+    copy from a winning video's visual style.
 - **Missing-voiceover prompt:** any card without a voice is clearly flagged **"Needs
-  voiceover"** and offers **Generate** (simulated TTS using a roster voice, *generating →
-  generated*) or **Upload** (mock file). Resolved voices carry an origin tag — **Roster /
-  Generated / Uploaded / From {video}** — and a winning-video voice can still be changed.
+  voiceover"**, the picker is auto-shown, and the card border/background turn warning-tinted
+  until resolved. Resolved voices carry an origin tag — **Roster / Generated / Uploaded /
+  From {video}** — and a winning-video voice can still be swapped.
 - **Generate the batch:** **"Generate N videos"** validates that every card has a voiceover
-  (expanding and pointing you to any that don't), then shows a confirmation listing each video's
-  full recipe — script ↔ voiceover (+origin) ↔ soundtrack ↔ creative ↔ skill ↔ visual.
-  *(Prototype — nothing is actually rendered.)*
+  (expanding and pointing you to any that don't), then shows a confirmation listing each
+  video's full recipe — script ↔ voiceover (+origin) ↔ soundtrack ↔ creative ↔ **all attached
+  skills as chips** ↔ visual. *(Prototype — nothing is actually rendered.)*
 
 ## Template Skills referenced
 
