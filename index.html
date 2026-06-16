@@ -1033,31 +1033,59 @@ function inferSkillTone(name) {
   if (/negative|dossier|skewed|split|debate/.test(n)) return "Contrast";
   return "Persuasion";
 }
-function SkillCard({ skill, selected, hasSelection, onToggleSelect, onUseInBatch }) {
+function SkillCard({ skill, selected, onToggleSelect, onUseSingle }) {
   const theme = useHostTheme();
+  const [hover, setHover] = useState(false);
   const usedIn = VIDEOS.filter((v) => v.skill && v.skill.name === skill.name);
   const tone = inferSkillTone(skill.name);
   const cardStyle = {
-    border: "1px solid " + (selected ? theme.accent.primary : theme.stroke.secondary),
-    background: selected ? theme.accent.primary + "0D" : theme.bg.elevated,
+    border: (selected ? "2px" : "1.5px") + " solid " + (selected ? theme.accent.primary : (hover ? theme.stroke.primary : theme.stroke.secondary)),
+    background: selected ? theme.accent.primary + "14" : (hover ? theme.fill.tertiary : theme.bg.elevated),
     borderRadius: 14,
-    padding: 14,
+    padding: selected ? 13.5 : 14,
     transition: "border-color 120ms ease, background 120ms ease",
+    cursor: "pointer",
+    boxSizing: "border-box",
+    boxShadow: selected ? "0 1px 4px " + theme.accent.primary + "33" : "none",
   };
+  const handleCardClick = () => onToggleSelect(skill.name);
+  const onUseSingleClick = (e) => { e.stopPropagation(); onUseSingle(skill); };
+  const onAddToggleClick = (e) => { e.stopPropagation(); onToggleSelect(skill.name); };
   return (
-    <div style={cardStyle} onClick={() => onToggleSelect(skill.name)} role="button" tabIndex={0}>
+    <div
+      style={cardStyle}
+      onClick={handleCardClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      role="button"
+      tabIndex={0}
+    >
       <Stack gap={12}>
+        <Row align="center" gap={6} style={{ minHeight: 22 }}>
+          {selected ? (
+            <Pill size="sm" active tone="info">✓ Selected</Pill>
+          ) : (
+            <Pill size="sm" tone="neutral">{hover ? "Click anywhere to add" : "Tap to add"}</Pill>
+          )}
+          <Spacer />
+          <Pill size="sm" active tone="neutral">{tone}</Pill>
+        </Row>
+
         <div style={{ position: "relative", height: 130, borderRadius: 12, overflow: "hidden" }}>
           <FlatPoster seed={skill.name} play={false} />
           <div
-            onClick={(e) => { e.stopPropagation(); onToggleSelect(skill.name); }}
-            title={selected ? "Remove from selection" : "Add to selection"}
-            style={{ position: "absolute", top: 10, left: 10, width: 24, height: 24, borderRadius: 999, background: selected ? theme.accent.primary : "rgba(255,255,255,0.92)", border: "1.5px solid " + (selected ? theme.accent.primary : theme.stroke.primary), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxSizing: "border-box" }}
+            onClick={onAddToggleClick}
+            title={selected ? "Click to remove from selection" : "Click to add to selection"}
+            style={{ position: "absolute", top: 10, left: 10, width: 30, height: 30, borderRadius: 999, background: selected ? theme.accent.primary : "rgba(255,255,255,0.96)", border: "2px solid " + (selected ? theme.accent.primary : theme.stroke.primary), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxSizing: "border-box", boxShadow: selected ? "0 2px 6px rgba(0,0,0,0.18)" : "0 1px 3px rgba(0,0,0,0.12)" }}
           >
-            {selected ? <CheckMark color="#fff" /> : null}
+            {selected ? (
+              <CheckMark color="#fff" />
+            ) : (
+              <span style={{ fontSize: 16, fontWeight: 600, color: theme.text.secondary, lineHeight: 1, marginTop: -1 }}>+</span>
+            )}
           </div>
-          <div style={{ position: "absolute", top: 10, right: 10 }}><Pill size="sm" active tone="neutral">{tone}</Pill></div>
         </div>
+
         <Stack gap={4}>
           <Text weight="semibold" style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13.5 }}>{skill.name}</Text>
           <Text size="small" tone="tertiary">{skill.desc}</Text>
@@ -1072,16 +1100,22 @@ function SkillCard({ skill, selected, hasSelection, onToggleSelect, onUseInBatch
               {usedIn.map((v) => <Pill key={v.id} size="sm" tone={v.badgeTone || "neutral"} active>{v.title}</Pill>)}
             </Row>
           ) : (
-            <Text size="small" tone="tertiary">Not yet used in a winning video — try it on a new Bulk Studio row.</Text>
+            <Text size="small" tone="tertiary">Not yet used in a winning video — add it to your selection and try it on a new Bulk Studio video.</Text>
           )}
         </Stack>
-        {selected ? (
-          <Button variant="secondary" disabled style={{ width: "100%" }}>✓ In selection</Button>
-        ) : hasSelection ? (
-          <Button variant="secondary" style={{ width: "100%" }} onClick={(e) => { e.stopPropagation(); onToggleSelect(skill.name); }}>Add to selection</Button>
-        ) : (
-          <Button variant="primary" style={{ width: "100%" }} onClick={(e) => { e.stopPropagation(); onUseInBatch(skill); }}>Use in new batch</Button>
-        )}
+
+        <Stack gap={6}>
+          <Button
+            variant={selected ? "secondary" : "primary"}
+            style={{ width: "100%" }}
+            onClick={onAddToggleClick}
+          >
+            {selected ? "✓ Added — click to remove" : "+ Add to selection"}
+          </Button>
+          <Row justify="center">
+            <Button variant="ghost" onClick={onUseSingleClick}>Use just this skill</Button>
+          </Row>
+        </Stack>
       </Stack>
     </div>
   );
@@ -1112,6 +1146,7 @@ function SkillsLibrary({ onUseSkills }) {
     onUseSkills([skill.name]);
     setSelected([]);
   };
+  const hasSel = validSelected.length > 0;
   return (
     <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px 48px" }}>
       <Stack gap={22}>
@@ -1121,8 +1156,7 @@ function SkillsLibrary({ onUseSkills }) {
             <Spacer />
             <Pill size="sm" active tone="info">{TEMPLATES.length} templates</Pill>
           </Row>
-          <Text tone="secondary">Browse the full template library — every skill that Bulk Studio can layer onto a video. Each card shows what the look is, which winning videos use it, and a one-click action to start a new Bulk Studio row pre-attached with this skill.</Text>
-          <Text size="small" tone="tertiary">Tip: <span style={{ fontWeight: 600 }}>select multiple skills</span> (tap a card or its checkbox) to layer them all onto a single video in Bulk Studio.</Text>
+          <Text tone="secondary">Browse the full template library — every skill that Bulk Studio can layer onto a video. Stack multiple looks on a single video by selecting several skills here, then click <span style={{ fontWeight: 600 }}>Use N skills in new batch</span>.</Text>
         </Stack>
 
         <Row gap={10} wrap style={{ rowGap: 8 }}>
@@ -1135,22 +1169,42 @@ function SkillsLibrary({ onUseSkills }) {
           {filters.map((f) => <Pill key={f} active={filter === f} onClick={() => setFilter(f)}>{f}</Pill>)}
         </Row>
 
-        {validSelected.length > 0 ? (
-          <div style={{ position: "sticky", top: 56, zIndex: 30 }}>
-            <div style={{ border: "1px solid " + theme.accent.primary, borderRadius: 12, background: theme.accent.primary + "0D", padding: "12px 14px", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}>
-              <Row gap={10} align="center" wrap style={{ rowGap: 8 }}>
-                <Pill size="sm" active tone="info">{validSelected.length} skill{validSelected.length === 1 ? "" : "s"} selected</Pill>
-                <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>{validSelected.length === 1 ? "This skill will be attached to a new Per-video Bulk Studio card." : "All " + validSelected.length + " skills will be layered onto a single new Per-video Bulk Studio card."}{hiddenSelectedCount > 0 ? " (" + hiddenSelectedCount + " currently hidden by the filter — still in your selection.)" : ""}</Text>
-                <Spacer />
-                <Button variant="ghost" onClick={clearSelection}>Clear selection</Button>
-                <Button variant="primary" onClick={handoffSelection}>Use {validSelected.length} skill{validSelected.length === 1 ? "" : "s"} in new batch</Button>
+        <div style={{ position: "sticky", top: 56, zIndex: 30 }}>
+          <div style={{ border: (hasSel ? "1.5px" : "1px") + " solid " + (hasSel ? theme.accent.primary : theme.stroke.secondary), borderRadius: 12, background: hasSel ? theme.accent.primary + "0D" : "rgba(255,255,255,0.92)", padding: "14px 16px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", transition: "border-color 120ms ease, background 120ms ease" }}>
+            {hasSel ? (
+              <Stack gap={10}>
+                <Row gap={10} align="center" wrap style={{ rowGap: 8 }}>
+                  <Pill size="sm" active tone="info">{validSelected.length} skill{validSelected.length === 1 ? "" : "s"} selected</Pill>
+                  <Text size="small" tone="tertiary" style={{ flex: 1, minWidth: 180 }}>
+                    {validSelected.length === 1 ? "This skill will be attached to a new Per-video Bulk Studio card." : "All " + validSelected.length + " skills will be layered onto a single new Per-video Bulk Studio card."}
+                    {hiddenSelectedCount > 0 ? " (" + hiddenSelectedCount + " hidden by the active filter — still selected.)" : ""}
+                  </Text>
+                  <Spacer />
+                  <Button variant="ghost" onClick={clearSelection}>Clear selection</Button>
+                  <Button variant="primary" onClick={handoffSelection}>Use {validSelected.length} skill{validSelected.length === 1 ? "" : "s"} in new batch</Button>
+                </Row>
+                <Row gap={6} wrap style={{ rowGap: 6 }}>
+                  <Text size="small" tone="tertiary" weight="medium" style={{ marginRight: 4 }}>Selected:</Text>
+                  {validSelected.slice(0, 8).map((n) => (
+                    <Pill key={n} size="sm" active onClick={() => toggleSelect(n)}>{n}  ✕</Pill>
+                  ))}
+                  {validSelected.length > 8 ? <Pill size="sm">+{validSelected.length - 8} more</Pill> : null}
+                </Row>
+              </Stack>
+            ) : (
+              <Row gap={12} align="center" wrap style={{ rowGap: 10 }}>
+                <Stack gap={2} style={{ flex: 1, minWidth: 240 }}>
+                  <Text weight="semibold">Build a new video with multiple skills</Text>
+                  <Text size="small" tone="tertiary">Tap any skill below to add it to your selection. When you're done, click <span style={{ fontWeight: 600 }}>Use N skills in new batch</span> — every selected skill stacks onto a single new Per-video Bulk Studio card.</Text>
+                </Stack>
+                <Button variant="primary" disabled>Use 0 skills in new batch</Button>
               </Row>
-            </div>
+            )}
           </div>
-        ) : null}
+        </div>
 
         {shown.length === 0 ? (
-          <Callout tone="neutral" title="No skills match this filter">Try "All" or another category to see more templates.{validSelected.length > 0 ? " Your selection is preserved — switch filters and they'll still be there." : ""}</Callout>
+          <Callout tone="neutral" title="No skills match this filter">Try "All" or another category to see more templates.{hasSel ? " Your selection is preserved — switch filters and your selected skills will still be there." : ""}</Callout>
         ) : (
           <Grid columns="repeat(auto-fill, minmax(280px, 1fr))" gap={16}>
             {shown.map((tpl) => (
@@ -1158,9 +1212,8 @@ function SkillsLibrary({ onUseSkills }) {
                 key={tpl.name}
                 skill={tpl}
                 selected={validSelected.includes(tpl.name)}
-                hasSelection={validSelected.length > 0}
                 onToggleSelect={toggleSelect}
-                onUseInBatch={handoffSingle}
+                onUseSingle={handoffSingle}
               />
             ))}
           </Grid>

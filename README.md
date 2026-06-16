@@ -34,15 +34,26 @@ prompt that fills only fields not already set per-card. The new IA is **Library 
 Studio → Skills**.
 
 A **Skills** tab is a browser for the full template library — every skill the bulk flow can
-layer onto a video. Each skill renders as a Library-style card with a flat poster preview,
-the kebab-id name (e.g. `front-porch-positive`), a one-sentence description, an inferred
-tone (Positive / Contrast / Persuasion), and chips listing which winning videos use it. A
-**Use in new batch** button on each card jumps to **Bulk Studio** (Per-video mode) and
-creates a fresh row pre-attached with that skill in its multi-skill chip set. **Multi-select
-is supported**: tap any card (or its checkbox) to add it to a selection, and a sticky
-header action bar appears with a running count, a **"Use N skills in new batch"** primary
-CTA that hands the whole stack off to a single new Bulk Studio Per-video card, and a
-**Clear selection** button. Selections persist across filter changes (hidden selections
+layer onto a video. **Multi-select is the obvious primary interaction**: a persistent
+header action bar at the top of the tab is *always* visible (sticky under the filter
+pills) and explains the model up front. With zero skills selected the bar reads
+**"Build a new video with multiple skills — tap any skill below…"** alongside a disabled
+**"Use 0 skills in new batch"** CTA. As you tap cards, the bar lights up with the
+selection count, a removable-chip readout of every selected skill, a **Clear selection**
+button, and a primary **"Use N skills in new batch"** CTA that hands the whole stack off
+to a single new Bulk Studio Per-video card via the `pendingBulkSkills` array bridge.
+
+Each skill card shows a flat poster preview, the kebab-id name (e.g.
+`front-porch-positive`), a one-sentence description, an inferred tone (Positive / Contrast
+/ Persuasion), and chips listing which winning videos use it. **The whole card is a
+selection toggle**: clicking anywhere on it adds the skill to (or removes it from) your
+selection. The card's primary button is now **"+ Add to selection"** (or **"✓ Added —
+click to remove"** when selected); a smaller secondary **"Use just this skill"** ghost
+link below preserves the legacy single-skill quick path. A filled checkmark badge in the
+top-left of the poster, a "Selected" pill chip at the top of the card, an accent border,
+an accent-tinted background, and a soft accent glow make the selected state read from a
+distance, and unselected cards pick up a subtle hover background plus a "Click anywhere
+to add" hint chip while hovered. Selections persist across filter changes (hidden ones
 stay in state and are noted in the action bar). The header has a stat strip (skills in
 library, used by winning videos, winning videos covered) and filter pills (All / Used /
 Unused / Positive / Contrast / Persuasion).
@@ -217,21 +228,27 @@ onto a video. Each skill renders as a Library-style card and the tab supports
 - **Kebab-id name** (e.g. `front-porch-positive`) plus a one-sentence description, an
   inferred **tone tag** (Positive / Contrast / Persuasion), and a "Used in N winning videos"
   count with chip-listed video titles colored by their performance badge.
-- **Multi-select selection model** — every card has a checkmark ring in the top-left of
-  its poster; tap the card or the ring to toggle selection. Selected cards get an accent
-  border and a subtle accent-tinted background. Selection state is persisted (`skills.selected`)
-  and survives filter changes — flipping between **All / Used / Positive** etc. never drops a
-  hidden selection.
-- **Sticky action bar** — appears at the top of the Skills tab body the moment you select
-  one or more skills. It shows a running **"N skills selected"** count, a brief explainer
-  ("All N skills will be layered onto a single new Per-video Bulk Studio card"), a
-  **Clear selection** ghost button, and a primary **"Use N skills in new batch"** CTA. When
-  the selection is empty, the bar disappears.
-- **Use in new batch** (per-card) — when no other skills are selected, this primary button
-  hands the single skill off to **Bulk Studio** as before. When a selection already exists,
-  the per-card button shifts to a secondary **Add to selection** affordance (or **✓ In
-  selection** when this card is already selected) so the bottom button can never silently
-  drop a multi-select.
+- **Click-to-toggle card selection** — tapping anywhere on a skill card adds (or removes)
+  it from the selection. The poster shows a filled checkmark badge in its top-left when
+  selected, and an outlined "+" badge when not. Selected cards take on an accent border, a
+  light accent-tinted background, and a soft accent glow; unselected cards get a subtle
+  hover background plus a "Click anywhere to add" hint chip while hovered. A "Selected"
+  pill chip sits at the top of every selected card so the state reads at a distance.
+- **Persistent sticky action bar** — *always* visible at the top of the tab body, even
+  when nothing is selected. With zero selected it reads **"Build a new video with multiple
+  skills"** plus a one-line helper ("Tap any skill below… click *Use N skills in new
+  batch* when you're done") and a disabled **"Use 0 skills in new batch"** CTA, so the
+  multi-select model is obvious from the moment the tab opens. With one or more selected
+  it switches to a count pill, an explainer ("All N skills will be layered onto a single
+  new Per-video Bulk Studio card"), a removable-chip readout of every selected skill (with
+  an "+N more" overflow chip past 8), a **Clear selection** ghost button, and a primary
+  **"Use N skills in new batch"** CTA. Filter-hidden selections are noted in the
+  parenthetical hint and never dropped from state.
+- **Per-card buttons** — the primary action is now **"+ Add to selection"** (or
+  **"✓ Added — click to remove"** when selected), filled with the accent color so selection
+  reads as the obvious action. A smaller secondary **"Use just this skill"** ghost link
+  preserves the legacy single-skill quick path (sends only this skill into a fresh Bulk
+  Studio Per-video card).
 - **Hand-off** — the **"Use N skills in new batch"** CTA jumps to **Bulk Studio**, force-
   switches Mode to **Per-video customization**, and creates a fresh expanded card with all
   selected skills loaded into the multi-skill chip stack. The selection clears once the
