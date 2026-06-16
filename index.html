@@ -36,7 +36,7 @@
      2) New Batch Flow (new-batch-flow.canvas.tsx)
    No build step, no external CSS/JS beyond React + Babel CDN.
    ================================================================ */
-const { useState, useRef } = React;
+const { useState, useRef, useEffect } = React;
 
 /* ---------------- Theme (Apple-clean LIGHT) ---------------- */
 const THEME = {
@@ -1438,15 +1438,197 @@ const BULK_ORIGIN_LABEL = { roster: "Roster", video: "Winning video", generated:
 function bulkOriginLabel(voice) { return voice.origin === "video" && voice.from ? "From " + voice.from : BULK_ORIGIN_LABEL[voice.origin]; }
 function videoFullRow(v) {
   return {
-    source: "video", title: v.title, text: v.script.text,
+    source: "video", videoId: v.id, title: v.title, text: v.script.text,
     voice: { origin: "video", value: v.voiceover.artist + " — " + v.voiceover.provider, from: v.title },
     soundtrack: { origin: "library", value: v.soundtrack.name + " · " + v.soundtrack.mood },
     creative: v.creative, skills: [v.skill.name],
     visual: { format: v.visual.format, duration: v.visual.duration, grade: v.visual.grade, captions: v.visual.captions },
+    color: v.color, accent: v.accent, duration: v.duration, format: v.format,
+    badge: v.badge, badgeTone: v.badgeTone, ctr: v.ctr, views: v.views, vtr: v.vtr, category: v.category,
   };
 }
 function libraryFullRow(s) { return { source: "library", title: s.title, text: s.text, voice: null, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } }; }
 function customFullRow(text) { return { source: "custom", title: "Custom video", text: text, voice: null, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } }; }
+
+/* Module-level Map of rowId → File for bulk-uploaded audio. Files can't go in canvas state,
+   so this lives outside React; on reload the map is empty and the player falls back to speech synth. */
+const BULK_AUDIO_BLOBS = (typeof window !== "undefined" ? (window.__bulkAudioBlobs = window.__bulkAudioBlobs || new Map()) : new Map());
+
+function pickSpeechVoice(voices, voice) {
+  if (!voices || !voices.length) return null;
+  const raw = String((voice && voice.value) || "");
+  const firstWord = raw.split(/[—\-\(·]/)[0].trim().toLowerCase();
+  if (firstWord) {
+    for (const sv of voices) { if ((sv.name || "").toLowerCase().includes(firstWord)) return sv; }
+  }
+  return voices.find((v) => (v.lang || "").toLowerCase().startsWith("en")) || voices[0];
+}
+
+function ScriptVoicePlayer({ row }) {
+  const theme = useHostTheme();
+  const [playing, setPlaying] = useState(false);
+  const [error, setError] = useState("");
+  const audioRef = useRef(null);
+  const utterRef = useRef(null);
+  const objectUrlRef = useRef(null);
+  const synthSupported = typeof window !== "undefined" && !!window.speechSynthesis;
+
+  const cleanup = () => {
+    if (audioRef.current) { try { audioRef.current.pause(); } catch (_) {} audioRef.current.src = ""; audioRef.current = null; }
+    if (objectUrlRef.current) { try { URL.revokeObjectURL(objectUrlRef.current); } catch (_) {} objectUrlRef.current = null; }
+    if (synthSupported) { try { window.speechSynthesis.cancel(); } catch (_) {} }
+    utterRef.current = null;
+  };
+
+  useEffect(() => () => cleanup(), []);
+
+  const stop = () => { cleanup(); setPlaying(false); };
+
+  const play = () => {
+    setError("");
+    if (!row.voice) return;
+    const blob = BULK_AUDIO_BLOBS.get(row.id);
+    if (row.voice.origin === "uploaded" && blob) {
+      try {
+        const url = URL.createObjectURL(blob);
+        objectUrlRef.current = url;
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => stop();
+        audio.onerror = () => { setError("Couldn't play this audio file."); stop(); };
+        audio.play().then(() => setPlaying(true)).catch(() => { setError("Browser blocked playback."); stop(); });
+        return;
+      } catch (e) { setError("Couldn't play this audio file."); stop(); return; }
+    }
+    if (!synthSupported) { setError("Audio preview unavailable in this browser."); return; }
+    const text = String(row.text || "").trim();
+    if (!text) { setError("Add a script to preview the read-aloud."); return; }
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices() || [];
+      const target = pickSpeechVoice(voices, row.voice);
+      if (target) u.voice = target;
+      u.rate = 1.0; u.pitch = 1.0;
+      u.onend = () => stop();
+      u.onerror = () => stop();
+      utterRef.current = u;
+      window.speechSynthesis.speak(u);
+      setPlaying(true);
+    } catch (e) { setError("Audio preview unavailable in this browser."); stop(); }
+  };
+
+  const blob = BULK_AUDIO_BLOBS.get(row.id);
+  const usingFile = !!(row.voice && row.voice.origin === "uploaded" && blob);
+  const willSpeak = !usingFile;
+  const noVoice = !row.voice;
+  const disabled = noVoice || (willSpeak && !synthSupported);
+  const hint = noVoice
+    ? "Add or generate a voiceover to preview"
+    : usingFile
+      ? "Plays the uploaded audio file"
+      : (synthSupported ? "Preview: voiceover reading the script (browser speech synthesis — not the rendered ad)" : "Audio preview unavailable in this browser");
+
+  return (
+    <Stack gap={6} style={{ background: theme.fill.quaternary, borderRadius: 9, padding: "10px 12px" }}>
+      <Row gap={8} align="center" wrap style={{ rowGap: 6 }}>
+        <Button variant="secondary" disabled={disabled} onClick={playing ? stop : play}>{playing ? "Stop preview" : "Play preview"}</Button>
+        <Pill size="sm" tone={noVoice ? "neutral" : (usingFile ? "info" : "neutral")} active={!noVoice} leadingContent={<ElIcon type="voiceover" size={11} />}>{noVoice ? "No voiceover" : (usingFile ? "Audio file" : "Speech synth")}</Pill>
+        <Spacer />
+        {playing ? <Text size="small" tone="tertiary">Playing…</Text> : null}
+      </Row>
+      <Text size="small" tone="tertiary">{hint}</Text>
+      {error ? <Text size="small" style={{ color: TONE.warning }}>{error}</Text> : null}
+    </Stack>
+  );
+}
+
+/* ----- Skills Library tab ----- */
+function inferSkillTone(name) {
+  const n = String(name || "").toLowerCase();
+  if (/positive|porch|civic|rounded|letterbox/.test(n)) return "Positive";
+  if (/negative|dossier|skewed|split|debate/.test(n)) return "Contrast";
+  return "Persuasion";
+}
+function SkillCard({ skill, onUseInBatch }) {
+  const theme = useHostTheme();
+  const usedIn = VIDEOS.filter((v) => v.skill && v.skill.name === skill.name);
+  const tone = inferSkillTone(skill.name);
+  return (
+    <Card>
+      <CardBody style={{ padding: 14 }}>
+        <Stack gap={12}>
+          <div style={{ position: "relative", height: 130, borderRadius: 12, overflow: "hidden" }}>
+            <FlatPoster seed={skill.name} play={false} />
+            <div style={{ position: "absolute", top: 10, right: 10 }}><Pill size="sm" active tone="neutral">{tone}</Pill></div>
+          </div>
+          <Stack gap={4}>
+            <Text weight="semibold" style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13.5 }}>{skill.name}</Text>
+            <Text size="small" tone="tertiary">{skill.desc}</Text>
+          </Stack>
+          <Divider />
+          <Stack gap={6}>
+            <Row align="center">
+              <Text size="small" tone="secondary" weight="medium">Used in {usedIn.length} winning video{usedIn.length === 1 ? "" : "s"}</Text>
+            </Row>
+            {usedIn.length ? (
+              <Row gap={6} wrap style={{ rowGap: 6 }}>
+                {usedIn.map((v) => <Pill key={v.id} size="sm" tone={v.badgeTone || "neutral"} active>{v.title}</Pill>)}
+              </Row>
+            ) : (
+              <Text size="small" tone="tertiary">Not yet used in a winning video — try it on a new bulk row.</Text>
+            )}
+          </Stack>
+          <Button variant="primary" style={{ width: "100%" }} onClick={() => onUseInBatch(skill)}>Use in new batch</Button>
+        </Stack>
+      </CardBody>
+    </Card>
+  );
+}
+
+function SkillsLibrary({ onUseSkill }) {
+  const theme = useHostTheme();
+  const [filter, setFilter] = useCanvasState("skills.filter", "All");
+  const usedSkills = new Set(VIDEOS.map((v) => v.skill && v.skill.name).filter(Boolean));
+  const filters = ["All", "Used", "Unused", "Positive", "Contrast", "Persuasion"];
+  const shown = TEMPLATES.filter((t) => {
+    if (filter === "All") return true;
+    if (filter === "Used") return usedSkills.has(t.name);
+    if (filter === "Unused") return !usedSkills.has(t.name);
+    return inferSkillTone(t.name) === filter;
+  });
+  return (
+    <div style={{ background: theme.bg.editor, minHeight: "100%", padding: "28px 32px 48px" }}>
+      <Stack gap={22}>
+        <Stack gap={6}>
+          <Row align="center" wrap gap={12}>
+            <H1>Skills</H1>
+            <Spacer />
+            <Pill size="sm" active tone="info">{TEMPLATES.length} templates</Pill>
+          </Row>
+          <Text tone="secondary">Browse the full template library — every skill that the Bulk Voiceovers and New Batch flows can layer onto a video. Each card shows what the look is, which winning videos use it, and a one-click action to start a new bulk row pre-attached with this skill.</Text>
+        </Stack>
+
+        <Row gap={10} wrap style={{ rowGap: 8 }}>
+          <Stat value={TEMPLATES.length} label="Skills in library" />
+          <Stat value={usedSkills.size} label="Used by winning videos" tone="info" />
+          <Stat value={VIDEOS.length} label="Winning videos covered" tone="success" />
+        </Row>
+
+        <Row gap={6} wrap style={{ rowGap: 6 }}>
+          {filters.map((f) => <Pill key={f} active={filter === f} onClick={() => setFilter(f)}>{f}</Pill>)}
+        </Row>
+
+        {shown.length === 0 ? (
+          <Callout tone="neutral" title="No skills match this filter">Try "All" or another category to see more templates.</Callout>
+        ) : (
+          <Grid columns="repeat(auto-fill, minmax(280px, 1fr))" gap={16}>
+            {shown.map((tpl) => <SkillCard key={tpl.name} skill={tpl} onUseInBatch={(s) => onUseSkill(s.name)} />)}
+          </Grid>
+        )}
+      </Stack>
+    </div>
+  );
+}
 
 function NumberBadge({ n }) {
   const theme = useHostTheme();
@@ -1557,7 +1739,7 @@ function DropZone({ accept, multiple, onFiles, label, hint }) {
   );
 }
 
-function BulkVoiceovers() {
+function BulkVoiceovers({ pendingSkill, clearPendingSkill }) {
   const theme = useHostTheme();
   const [rows, setRows] = useCanvasState("bulk.rows", []);
   const [voDraft, setVoDraft] = useCanvasState("bulk.voDraft", VO_ROSTER[0].id);
@@ -1580,8 +1762,19 @@ function BulkVoiceovers() {
   const addVideo = (v) => { if (!atCap) { addRowsFrom([videoFullRow(v)]); setNote(""); } };
   const addAllVideos = () => { addRowsFrom(VIDEOS.map(videoFullRow)); setNote(""); };
   const addCustom = () => { const t = custom.trim(); if (!t || atCap) return; addRowsFrom([customFullRow(t)]); setCustom(""); setNote(""); };
-  const removeRow = (id) => setRows((p) => p.filter((r) => r.id !== id));
-  const clearAll = () => { setRows([]); setNote(""); };
+  const removeRow = (id) => { try { BULK_AUDIO_BLOBS.delete(id); } catch (_) {} setRows((p) => p.filter((r) => r.id !== id)); };
+  const clearAll = () => { try { rows.forEach((r) => BULK_AUDIO_BLOBS.delete(r.id)); } catch (_) {} setRows([]); setNote(""); };
+
+  useEffect(() => {
+    if (!pendingSkill) return;
+    const room = BULK_MAX - rows.length;
+    if (room <= 0) {
+      setNote("Bulk cap reached — remove a video before adding a new skill row.");
+    } else {
+      setRows((p) => [...p, { id: makeUid(), expanded: true, editing: null, source: "skill", title: "New " + pendingSkill + " video", text: "", voice: null, soundtrack: null, creative: "", skills: [pendingSkill], visual: { ...DEFAULT_VISUAL_DRAFT } }]);
+    }
+    if (clearPendingSkill) clearPendingSkill();
+  }, [pendingSkill]);
 
   const updateRow = (id, patch) => setRows((p) => p.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const toggleExpand = (id) => setRows((p) => p.map((r) => (r.id === id ? { ...r, expanded: !r.expanded } : r)));
@@ -1657,12 +1850,15 @@ function BulkVoiceovers() {
         }
         if (idx > -1) {
           next[idx] = { ...next[idx], voice: { origin: "uploaded", value: f.name } };
+          try { BULK_AUDIO_BLOBS.set(next[idx].id, f); } catch (_) {}
           usedIdxs.add(idx);
           attached++;
         } else {
           if (next.length >= BULK_MAX) { skipped++; continue; }
           const stripped = f.name.replace(/\.[^.]+$/, "");
-          next.push({ id: makeUid(), expanded: false, editing: null, source: "upload", title: stripped, text: "", voice: { origin: "uploaded", value: f.name }, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } });
+          const newId = makeUid();
+          try { BULK_AUDIO_BLOBS.set(newId, f); } catch (_) {}
+          next.push({ id: newId, expanded: false, editing: null, source: "upload", title: stripped, text: "", voice: { origin: "uploaded", value: f.name }, soundtrack: null, creative: "", skills: [], visual: { ...DEFAULT_VISUAL_DRAFT } });
           newAdded++;
         }
       }
@@ -1909,6 +2105,30 @@ function BulkVoiceovers() {
                     <div style={{ marginTop: 12, borderTop: "1px solid " + theme.stroke.tertiary, paddingTop: 14 }}>
                       <Stack gap={14}>
 
+                        {r.videoId ? <Poster v={r} /> : null}
+                        {r.videoId ? (
+                          <Stack gap={4}>
+                            <Text weight="semibold">{r.title}</Text>
+                            <Text size="small" tone="tertiary">{r.category}</Text>
+                          </Stack>
+                        ) : null}
+                        {r.videoId && r.ctr ? (
+                          <Row gap={8} wrap>
+                            <PerfStat label="CTR" value={r.ctr} accent />
+                            <PerfStat label="Views" value={r.views} />
+                            <PerfStat label="Watch-through" value={r.vtr} />
+                          </Row>
+                        ) : null}
+                        {r.videoId ? <Divider /> : null}
+
+                        <Row align="center">
+                          <Text size="small" tone="secondary" weight="medium">Recipe</Text>
+                          <Spacer />
+                          <Text size="small" tone="tertiary">6 ingredients</Text>
+                        </Row>
+
+                        <ScriptVoicePlayer row={r} />
+
                         {/* SCRIPT */}
                         <Stack gap={8}>
                           <Row align="center">
@@ -2139,7 +2359,8 @@ function BulkVoiceovers() {
    ================================================================ */
 function App() {
   const [tab, setTab] = useState("library");
-  const tabs = [["library", "Winning Videos Library"], ["batch", "New Batch Flow"], ["bulk", "Bulk Voiceovers"]];
+  const [pendingBulkSkill, setPendingBulkSkill] = useState(null);
+  const tabs = [["library", "Winning Videos Library"], ["batch", "New Batch Flow"], ["bulk", "Bulk Voiceovers"], ["skills", "Skills"]];
   return (
     <div style={{ minHeight: "100vh", background: THEME.bg.editor }}>
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(255,255,255,0.78)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid " + THEME.stroke.secondary, padding: "10px 20px", display: "flex", alignItems: "center", gap: 16 }}>
@@ -2153,7 +2374,8 @@ function App() {
       </div>
       <div style={{ display: tab === "library" ? "block" : "none" }}><TemplateLibrary /></div>
       <div style={{ display: tab === "batch" ? "block" : "none" }}><NewBatchFlow /></div>
-      <div style={{ display: tab === "bulk" ? "block" : "none" }}><BulkVoiceovers /></div>
+      <div style={{ display: tab === "bulk" ? "block" : "none" }}><BulkVoiceovers pendingSkill={pendingBulkSkill} clearPendingSkill={() => setPendingBulkSkill(null)} /></div>
+      <div style={{ display: tab === "skills" ? "block" : "none" }}><SkillsLibrary onUseSkill={(name) => { setPendingBulkSkill(name); setTab("bulk"); }} /></div>
     </div>
   );
 }

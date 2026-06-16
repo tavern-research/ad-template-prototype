@@ -14,6 +14,34 @@ or step through a **guided wizard** instead of wrestling with a cramped form.
 
 ## What's new in v2
 
+A new **Skills** tab (the fourth tab) is a browser for the full template library — every
+skill the bulk and new-batch flows can layer onto a video. Each skill renders as a
+Library-style card with a flat poster preview, the kebab-id name (e.g. `front-porch-positive`),
+a one-sentence description, an inferred tone (Positive / Contrast / Persuasion), and chips
+listing which winning videos use it. A **Use in new batch** button on each card jumps to
+**Bulk Voiceovers** and creates a fresh row pre-attached with that skill in its
+multi-skill chip set. The header has a stat strip (skills in library, used by winning
+videos, winning videos covered) and filter pills (All / Used / Unused / Positive /
+Contrast / Persuasion).
+
+In Bulk Voiceovers, **each expanded video card now matches the Winning Videos library card
+visually**: video-sourced rows render with the flat-color **poster + play glyph + duration
+and format chips + performance badge**, the title + category, and the **CTR / Views /
+Watch-through** stat strip — exactly like a winning-video card — followed by the same six
+ingredient rows the Library card uses (with the swap/pick/add-skill chip pattern that
+shipped earlier). Library, custom, upload, and skill-prefilled cards omit poster/badges/stats
+(no invented metrics) but render the same six ingredient rows.
+
+A new inline **Play preview** lives on each expanded bulk card. If the row has an
+**uploaded** voiceover with the actual audio file (from the multi-audio drop zone), it plays
+that file via an `<audio>` element and `URL.createObjectURL`. For **Roster / Generated /
+From-{video}** voices (no real audio in the prototype), it uses the browser's
+**Web Speech API** (`speechSynthesis` + `SpeechSynthesisUtterance`) to read the row's script
+aloud, picking a `SpeechSynthesisVoice` whose name token matches the chosen voice (with an
+English fallback). The button is disabled with the tooltip "Add or generate a voiceover to
+preview" until a voice is set, and the card honestly notes "Audio preview unavailable in this
+browser" if `speechSynthesis` is missing. Audio is cleaned up on stop, row removal, or unmount.
+
 A third tab — **Bulk Voiceovers** — lets you build a batch of up to **50 videos** at once,
 where **each video expands into the same six-ingredient editor as a Winning Videos card**.
 Collapsed, a card shows a compact summary (index, title, voiceover status, ingredient
@@ -39,7 +67,7 @@ to unresolved ones) and confirms the full per-video recipe. See
 
 ## What you can do in it
 
-Open it and use the **tab switcher** at the top to move between three ideas:
+Open it and use the **tab switcher** at the top to move between four ideas:
 
 ### 1. Winning Videos Library
 Browse past high-performing ads as a gallery. Each card shows its performance stats
@@ -100,8 +128,18 @@ row.
   audio that pairs into existing rows still works at cap.
 - **Expandable Library-style cards:** collapsed shows index, title, voiceover status, on/off
   indicators for voiceover/soundtrack/creative/visual, and a **skills: N** count chip. Expand
-  to edit the **whole recipe** in the familiar Library card layout — six ingredient rows, each
-  with a **Swap / Pick / Add skill** chip that opens an inline picker:
+  to see the **full Winning Videos card UI** — for video-prefilled rows, the same flat-color
+  poster with play glyph + duration/format chips + performance badge, the title and category,
+  and the **CTR / Views / Watch-through** stat strip exactly like a Winning Videos library
+  card. Library/custom/upload/skill-prefilled cards omit poster/badges/stats (no invented
+  metrics) but render the same six ingredient rows. Below that, an inline **Play preview**
+  button reads the script aloud — for **uploaded** voices it plays the actual audio file via
+  `URL.createObjectURL`; for **roster / generated / from-{video}** voices it uses the
+  browser's `speechSynthesis` API (matching the picked voice's name when possible) so you
+  hear an honest read-aloud preview right in the prototype. The button is disabled until a
+  voiceover is set; if `speechSynthesis` is missing, the card shows a small "Audio preview
+  unavailable in this browser" note. Then come the **six ingredient rows**, each with a
+  **Swap / Pick / Add skill** chip that opens an inline picker:
   - **Script** — title + text inline; Swap to use a winning video's script or a library script.
   - **Voiceover** — current value with origin tag; picker offers **Roster** select,
     **Generate** (mock TTS), **Upload** (mock file), or **Use a winning video's voiceover**.
@@ -121,6 +159,20 @@ row.
   (expanding and pointing you to any that don't), then shows a confirmation listing each
   video's full recipe — script ↔ voiceover (+origin) ↔ soundtrack ↔ creative ↔ **all attached
   skills as chips** ↔ visual. *(Prototype — nothing is actually rendered.)*
+
+### 4. Skills
+*(new)* A browser for the full template library — every skill the bulk and new-batch flows
+can layer onto a video. Each skill renders as a Library-style card:
+
+- **Flat-color poster preview** seeded from the skill's id (consistent visual signature).
+- **Kebab-id name** (e.g. `front-porch-positive`) plus a one-sentence description, an
+  inferred **tone tag** (Positive / Contrast / Persuasion), and a "Used in N winning videos"
+  count with chip-listed video titles colored by their performance badge.
+- **Use in new batch** button — jumps to **Bulk Voiceovers** and creates a fresh row pre-
+  attached with that skill in its multi-skill chip set, expanded and ready to fill in script
+  and voiceover.
+- The header shows a stat strip (skills in library, used by winning videos, winning videos
+  covered) and filter pills: **All / Used / Unused / Positive / Contrast / Persuasion**.
 
 ## Template Skills referenced
 
